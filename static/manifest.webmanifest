@@ -1,0 +1,10 @@
+{
+  "name": "Dientecito Feliz - Clínica Odontológica UAM",
+  "short_name": "Dientecito",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#f3f7f7",
+  "theme_color": "#0e8f7e",
+  "lang": "es",
+  "icons": [{ "src": "/static/icono.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }]
+}

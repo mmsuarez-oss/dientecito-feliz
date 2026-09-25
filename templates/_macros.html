@@ -1,0 +1,35 @@
+{% macro tarjeta_cita(c, con_paciente=true) %}
+<div class="cita" data-estado="{{ c.estado }}">
+  <div class="cita-hora"><b>{{ c.hora }}</b><small>{{ c.fecha|fecha }}</small></div>
+  <div class="cita-info">
+    {% if con_paciente %}<a href="{{ url_for('expediente', pid=c.paciente_id) }}"><b>{{ c.nombre }}</b></a>{% endif %}
+    <span class="tenue">{{ c.motivo or 'Sin motivo indicado' }}{% if c.estudiante %} · {{ c.estudiante }}{% endif %}</span>
+  </div>
+  <div class="cita-acciones">
+    {% if c.estado in ('Pendiente', 'Confirmada') and recordatorio(c) %}
+      <a class="btn wa" href="{{ recordatorio(c) }}" target="_blank" rel="noopener">💬 Recordar</a>
+    {% endif %}
+    <form method="post" action="{{ url_for('cita_estado', cid=c.id) }}">
+      <select name="estado" class="chip-select" data-autoenviar aria-label="Estado de la cita">
+        {% for e in ESTADOS_CITA %}<option {{ 'selected' if e == c.estado }}>{{ e }}</option>{% endfor %}
+      </select>
+    </form>
+  </div>
+</div>
+{% endmacro %}
+
+{% macro vacio(icono, texto) %}
+<div class="vacio"><span>{{ icono }}</span><p>{{ texto }}</p></div>
+{% endmacro %}
+
+{% macro firma_form(p) %}
+      <form method="post" action="{{ url_for('firmar', pid=p.id) }}" data-firma>
+        <p class="tenue">El paciente firma aquí con el dedo o el mouse:</p>
+        <canvas class="pad-firma"></canvas>
+        <input type="hidden" name="firma">
+        <div class="en-linea">
+          <button type="button" class="btn" data-limpiar>🧽 Borrar</button>
+          <button class="btn primario">✍️ Guardar firma</button>
+        </div>
+      </form>
+{% endmacro %}

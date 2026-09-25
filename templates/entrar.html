@@ -1,0 +1,15 @@
+{% extends 'base.html' %}
+{% block titulo %}Entrar{% endblock %}
+{% block contenido %}
+<div class="entrar">
+  <div class="logo-grande">🦷</div>
+  <h1>Dientecito Feliz</h1>
+  <p class="tenue">Clínica Odontológica UAM</p>
+  <form method="post" class="tarjeta">
+    <label>Clave de la clínica
+      <input type="password" name="clave" autofocus required autocomplete="current-password" inputmode="text">
+    </label>
+    <button class="btn primario grande">Entrar</button>
+  </form>
+</div>
+{% endblock %}

@@ -1,0 +1,171 @@
+{% extends 'base.html' %}
+{% from '_macros.html' import tarjeta_cita, vacio, firma_form %}
+{% block titulo %}{{ p.nombre }}{% endblock %}
+{% block contenido %}
+<a class="atras" href="{{ url_for('pacientes') }}">‹ Pacientes</a>
+<header class="perfil tarjeta">
+  <span class="avatar grande">{{ (p.nombre.split()|map('first')|join|upper)[:2] }}</span>
+  <div class="crece">
+    <h1>{{ p.nombre }}</h1>
+    <p class="tenue">Cédula {{ p.cedula }}{% if p.nacimiento %} · {{ p.nacimiento|edad }}{% endif %}{% if p.sexo %} · {{ p.sexo }}{% endif %}</p>
+    <div class="insignias">
+      {% if p.aprobado %}<span class="chip verde">✔ Aprobado por docente</span>{% else %}<span class="chip amarillo">⏳ Falta aprobación docente</span>{% endif %}
+      {% if p.firma %}<span class="chip verde">✔ Consentimiento firmado</span>{% else %}<span class="chip amarillo">✍️ Falta consentimiento</span>{% endif %}
+    </div>
+  </div>
+  <div class="perfil-acciones">
+    {% if p.telefono %}
+      <a class="btn" href="tel:{{ p.telefono }}">📞 Llamar</a>
+      <a class="btn wa" href="{{ whatsapp(p.telefono) }}" target="_blank" rel="noopener">💬 WhatsApp</a>
+    {% endif %}
+    <a class="btn" href="{{ url_for('paciente_form', pid=p.id) }}">✏️ Editar</a>
+    <a class="btn primario" href="{{ url_for('citas', paciente=p.id, _anchor='nueva') }}">📅 Agendar</a>
+  </div>
+</header>
+
+{% if p.alergias %}<div class="aviso error grande">⚠️ <b>Alergias:</b> {{ p.alergias }}</div>{% endif %}
+
+<nav class="pestanas" data-pestanas>
+  <a href="#historia">📋 Historia</a>
+  <a href="#odontograma">🦷 Odontograma</a>
+  <a href="#tratamientos">💵 Tratamientos</a>
+  <a href="#consentimiento">✍️ Consentimiento</a>
+  <a href="#citas">📅 Citas</a>
+</nav>
+
+<section id="historia" class="panel">
+  <div class="tarjeta">
+    <dl class="datos">
+      {% for campo, titulo in [('telefono', 'Teléfono'), ('direccion', 'Dirección'), ('contacto_emergencia', 'Contacto de emergencia'),
+                               ('motivo_consulta', 'Motivo de consulta'), ('antecedentes', 'Antecedentes médicos'),
+                               ('medicamentos', 'Medicamentos actuales'), ('examen_clinico', 'Examen clínico'),
+                               ('plan', 'Diagnóstico y plan de tratamiento')] %}
+        <div><dt>{{ titulo }}</dt><dd>{{ p[campo] or '—' }}</dd></div>
+      {% endfor %}
+    </dl>
+    <a class="btn" href="{{ url_for('paciente_form', pid=p.id) }}">✏️ Completar o editar historia</a>
+  </div>
+  <form method="post" action="{{ url_for('aprobar', pid=p.id) }}" class="tarjeta">
+    <h3>Aprobación del docente</h3>
+    <div class="en-linea">
+      <label class="crece">Docente<input name="docente" value="{{ p.docente or '' }}" placeholder="Nombre del docente de clínica"></label>
+      <label class="check"><input type="checkbox" name="aprobado" {{ 'checked' if p.aprobado }}> Paciente aprobado</label>
+      <button class="btn primario">Guardar</button>
+    </div>
+  </form>
+</section>
+
+<section id="odontograma" class="panel" data-odontograma="{{ url_for('marcar_diente', pid=p.id) }}">
+  <div class="tarjeta">
+    <p class="tenue">1) Elige un estado · 2) Toca los dientes para marcarlos. Se guarda solo.</p>
+    <div class="paleta" role="radiogroup">
+      {% for estado, color in ESTADOS_DIENTE.items() %}
+        <button type="button" class="{{ 'activo' if estado == 'Caries' }}" data-estado="{{ estado }}" data-color="{{ color }}">
+          <i style="background: {{ color }}"></i>{{ estado|replace('Extraido', 'Extraído') }}
+        </button>
+      {% endfor %}
+    </div>
+    {% for titulo, arcada in [('Superior', SUPERIOR), ('Inferior', INFERIOR)] %}
+      <h4 class="arcada-titulo">{{ titulo }}</h4>
+      <div class="arcada">
+        {% for d in arcada %}
+          {% set estado = dientes.get(d, 'Sano') %}
+          <button type="button" class="diente" data-diente="{{ d }}" data-actual="{{ estado }}"
+                  style="--color: {{ ESTADOS_DIENTE[estado] }}" title="Diente {{ d }}: {{ estado }}">
+            <span class="corona"></span><small>{{ d }}</small>
+          </button>
+        {% endfor %}
+      </div>
+    {% endfor %}
+    <p class="resumen-odonto tenue" data-resumen></p>
+  </div>
+</section>
+
+<section id="tratamientos" class="panel">
+  <form method="post" action="{{ url_for('tratamiento_nuevo', pid=p.id) }}" class="tarjeta">
+    <h3>Agregar al plan de tratamiento</h3>
+    <div class="rejilla">
+      <label class="ancho">Procedimiento
+        <input name="procedimiento" list="tarifario" required placeholder="Ej.: Profilaxis" data-tarifario autocomplete="off">
+      </label>
+      <label>Diente(s)<input name="diente" placeholder="Ej.: 16" inputmode="numeric"></label>
+      <label>Costo (C$)<input name="costo" type="number" step="0.01" min="0" inputmode="decimal" placeholder="0.00"></label>
+    </div>
+    <datalist id="tarifario">
+      {% for t in tarifario %}<option value="{{ t.procedimiento }}" data-precio="{{ t.precio }}">{{ t.precio|dinero }}</option>{% endfor %}
+    </datalist>
+    <button class="btn primario">➕ Agregar</button>
+  </form>
+
+  {% set total = tratamientos|sum(attribute='costo') %}{% set pagado = tratamientos|sum(attribute='pagado') %}
+  {% if tratamientos %}
+  <div class="stats tres">
+    <div class="stat"><b class="chico">{{ total|dinero }}</b><span>Total</span></div>
+    <div class="stat"><b class="chico">{{ pagado|dinero }}</b><span>Pagado</span></div>
+    <div class="stat {{ 'alerta' if total - pagado > 0 }}"><b class="chico">{{ (total - pagado)|dinero }}</b><span>Saldo</span></div>
+  </div>
+  {% endif %}
+
+  {% for t in tratamientos %}
+    <div class="tarjeta tratamiento">
+      <div class="en-linea">
+        <div class="crece">
+          <b>{{ t.procedimiento }}</b>{% if t.diente %} <span class="tenue">· diente {{ t.diente }}</span>{% endif %}
+          <div class="tenue">{{ t.costo|dinero }} · pagado {{ t.pagado|dinero }}</div>
+        </div>
+        <form method="post" action="{{ url_for('tratamiento_actualizar', tid=t.id) }}">
+          <select name="estado" class="chip-select" data-autoenviar data-estado="{{ t.estado }}">
+            {% for e in ['Pendiente', 'Realizado'] %}<option {{ 'selected' if e == t.estado }}>{{ e }}</option>{% endfor %}
+          </select>
+        </form>
+      </div>
+      <div class="barra-progreso"><i style="width: {{ (100 * t.pagado / t.costo) if t.costo else 100 }}%"></i></div>
+      <div class="en-linea">
+        {% if t.costo > t.pagado %}
+        <form method="post" action="{{ url_for('tratamiento_actualizar', tid=t.id) }}" class="en-linea crece">
+          <input name="abono" type="number" step="0.01" min="0.01" max="{{ t.costo - t.pagado }}" inputmode="decimal"
+                 placeholder="Monto a pagar" required>
+          <button class="btn">💵 Registrar pago</button>
+        </form>
+        {% else %}<span class="chip verde crece-no">✔ Pagado</span><span class="crece"></span>{% endif %}
+        <form method="post" action="{{ url_for('tratamiento_actualizar', tid=t.id) }}" data-confirmar="¿Eliminar este tratamiento?">
+          <button class="btn texto peligro" name="eliminar" value="1">Eliminar</button>
+        </form>
+      </div>
+    </div>
+  {% else %}
+    {{ vacio('💵', 'Aún no hay tratamientos. Agrégalos arriba; los precios se llenan solos desde el tarifario.') }}
+  {% endfor %}
+</section>
+
+<section id="consentimiento" class="panel">
+  <div class="tarjeta">
+    <h3>Consentimiento informado</h3>
+    <p class="consentimiento-texto">
+      Yo, <b>{{ p.nombre }}</b>, con cédula <b>{{ p.cedula }}</b>, autorizo a los estudiantes de la Clínica
+      Odontológica UAM, bajo supervisión docente, a realizar los procedimientos de diagnóstico y tratamiento
+      que me han sido explicados. He sido informado(a) de sus beneficios, riesgos y alternativas, y he podido
+      hacer preguntas que fueron respondidas a mi satisfacción.
+    </p>
+    {% if p.firma %}
+      <div class="firma-guardada">
+        <img src="{{ p.firma }}" alt="Firma del paciente">
+        <p class="tenue">Firmado el {{ p.firma_fecha|fecha_larga }}</p>
+      </div>
+      <details><summary class="btn texto">Volver a firmar</summary>{{ firma_form(p) }}</details>
+    {% else %}
+      {{ firma_form(p) }}
+    {% endif %}
+  </div>
+</section>
+
+<section id="citas" class="panel">
+  <a class="btn primario" href="{{ url_for('citas', paciente=p.id, _anchor='nueva') }}">📅 Agendar nueva cita</a>
+  {% for c in citas %}{{ tarjeta_cita(c, con_paciente=false) }}{% else %}{{ vacio('📅', 'Este paciente aún no tiene citas.') }}{% endfor %}
+</section>
+
+<form method="post" action="{{ url_for('paciente_eliminar', pid=p.id) }}" class="zona-peligro"
+      data-confirmar="¿Eliminar a {{ p.nombre }} con todo su expediente, citas y tratamientos? No se puede deshacer.">
+  <button class="btn texto peligro">🗑️ Eliminar paciente</button>
+</form>
+{% endblock %}

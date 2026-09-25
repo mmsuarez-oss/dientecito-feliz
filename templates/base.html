@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#0e8f7e">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="Dientecito">
+  <link rel="manifest" href="{{ url_for('static', filename='manifest.webmanifest') }}">
+  <link rel="icon" href="{{ url_for('static', filename='icono.svg') }}">
+  <link rel="apple-touch-icon" href="{{ url_for('static', filename='icono.svg') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='estilo.css') }}">
+  <title>{% block titulo %}Inicio{% endblock %} · Dientecito Feliz</title>
+</head>
+<body>
+{% if session.get('ok') %}
+  {% set seccion = {'expediente': 'pacientes', 'paciente_form': 'pacientes'}.get(request.endpoint, request.endpoint) %}
+  <nav class="menu">
+    <a class="marca" href="{{ url_for('inicio') }}"><span class="logo">🦷</span><span>Dientecito<br>Feliz</span></a>
+    {% for ruta, icono, texto in [('inicio', '🏠', 'Inicio'), ('pacientes', '👤', 'Pacientes'), ('citas', '📅', 'Citas'),
+                                   ('cobros', '💵', 'Cobros'), ('inventario', '📦', 'Inventario')] %}
+      <a href="{{ url_for(ruta) }}" class="{{ 'activo' if seccion == ruta }}"><b>{{ icono }}</b><span>{{ texto }}</span></a>
+    {% endfor %}
+    <a class="salir" href="{{ url_for('salir') }}">Cerrar sesión</a>
+  </nav>
+{% endif %}
+<main>
+  {% if DEMO %}<div class="aviso demo">🧪 Versión de prueba · usa solo datos ficticios, no información real de pacientes.</div>{% endif %}
+  {% for tipo, mensaje in get_flashed_messages(with_categories=true) %}
+    <div class="aviso {{ tipo }}" role="status">{{ '✅' if tipo == 'ok' else '⚠️' }} {{ mensaje }}</div>
+  {% endfor %}
+  {% block contenido %}{% endblock %}
+</main>
+<script src="{{ url_for('static', filename='app.js') }}"></script>
+</body>
+</html>

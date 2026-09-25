@@ -1,0 +1,30 @@
+{% extends 'base.html' %}
+{% from '_macros.html' import vacio %}
+{% block titulo %}Pacientes{% endblock %}
+{% block contenido %}
+<header class="cabecera">
+  <h1>Pacientes</h1>
+  <a class="btn primario" href="{{ url_for('paciente_form') }}">➕ Nuevo</a>
+</header>
+
+<form class="buscador" role="search">
+  <input type="search" name="q" value="{{ texto }}" placeholder="🔍 Buscar por nombre, cédula o teléfono" data-buscar autocomplete="off">
+</form>
+
+<div class="tarjeta lista">
+  {% for p in pacientes %}
+    <a class="fila paciente" href="{{ url_for('expediente', pid=p.id) }}">
+      <span class="avatar">{{ (p.nombre.split()|map('first')|join|upper)[:2] }}</span>
+      <span class="crece">
+        <b>{{ p.nombre }}</b>
+        <small class="tenue">{{ p.cedula }}{% if p.telefono %} · {{ p.telefono }}{% endif %}{% if p.nacimiento %} · {{ p.nacimiento|edad }}{% endif %}</small>
+      </span>
+      {% if p.alergias %}<span class="chip rojo" title="Alergias: {{ p.alergias }}">⚠️ Alergia</span>{% endif %}
+      <span class="flecha">›</span>
+    </a>
+  {% else %}
+    {% if texto %}{{ vacio('🔍', 'No se encontró ningún paciente con “' ~ texto ~ '”.') }}
+    {% else %}{{ vacio('👤', 'Aún no hay pacientes. Registra el primero con el botón “Nuevo”.') }}{% endif %}
+  {% endfor %}
+</div>
+{% endblock %}

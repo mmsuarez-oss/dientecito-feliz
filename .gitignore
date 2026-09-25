@@ -1,0 +1,5 @@
+dientecito.db
+*.db
+__pycache__/
+.venv/
+.pa_token
