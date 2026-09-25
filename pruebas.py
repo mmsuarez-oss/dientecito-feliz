@@ -62,7 +62,7 @@ def foto():
 
 print("Dientecito Feliz - pruebas automáticas\n")
 print("Migración")
-with caso("CP-01", "Una base de la primera versión se actualiza sin perder datos"):
+with caso("CP-01", "Una base de versiones anteriores se actualiza sin perder datos"):
     viejo = sqlite3.connect(m.DB)
     viejo.executescript("""
         CREATE TABLE pacientes(id INTEGER PRIMARY KEY, nombre TEXT NOT NULL, cedula TEXT UNIQUE NOT NULL,
@@ -71,7 +71,12 @@ with caso("CP-01", "Una base de la primera versión se actualiza sin perder dato
                            hora TEXT NOT NULL, motivo TEXT, estudiante TEXT);
         CREATE TABLE odontograma(paciente_id INTEGER, diente INTEGER, estado TEXT, PRIMARY KEY(paciente_id, diente));
         INSERT INTO pacientes(nombre, cedula) VALUES ('Paciente antiguo', 'V-1');
-        INSERT INTO odontograma VALUES (1, 16, 'Caries');""")
+        INSERT INTO odontograma VALUES (1, 16, 'Caries');
+        CREATE TABLE odonto_registros(id INTEGER PRIMARY KEY, paciente_id INTEGER NOT NULL, diente INTEGER NOT NULL,
+            estado TEXT NOT NULL, descripcion TEXT, foto TEXT NOT NULL, fecha TEXT NOT NULL, usuario_id INTEGER,
+            revision TEXT DEFAULT 'Pendiente', observacion TEXT, revisado_por INTEGER);
+        INSERT INTO odonto_registros(paciente_id, diente, estado, foto, fecha, revision)
+            VALUES (1, 16, 'Caries', 'antigua.jpg', '2026-09-20 10:00', 'Aprobado');""")
     viejo.commit()
     viejo.close()
     m.iniciar_db()
@@ -79,6 +84,8 @@ with caso("CP-01", "Una base de la primera versión se actualiza sin perder dato
     assert sql("SELECT estado FROM odontograma WHERE diente = 16") == "Caries"
     assert sql("SELECT COUNT(*) FROM usuarios") == 3 and sql("SELECT COUNT(*) FROM salas") == 3
     assert sql("SELECT estudiante_id FROM pacientes WHERE cedula = 'V-1'") is not None
+    assert sql("SELECT estado || ' ' || foto FROM odonto_sesiones") == "Aprobado antigua.jpg"
+    assert sql("SELECT sesion_id FROM odonto_registros") == sql("SELECT id FROM odonto_sesiones")
 
 print("Acceso y permisos")
 anonimo = m.app.test_client()
@@ -134,35 +141,54 @@ with caso("CP-10", "Solo el profesor aprueba pacientes"):
     ok(prof.post(f"/pacientes/{pid}/aprobacion", data={"aprobado": "1"}, follow_redirects=True),
        "Aprobado por Profesor de prueba")
 
-print("Odontograma con foto")
-with caso("CP-11", "Sin foto, o con un archivo que no es imagen, no se registra"):
-    ok(est.post(f"/pacientes/{pid}/odontograma", data={"diente": "16", "estado": "Caries"}, follow_redirects=True),
-       "Debes adjuntar una foto")
-    ok(est.post(f"/pacientes/{pid}/odontograma", data={"diente": "16", "estado": "Caries",
-                                                       "foto": (io.BytesIO(b"texto"), "x.jpg")}, follow_redirects=True),
-       "Debes adjuntar una foto")
-    ok(est.post(f"/pacientes/{pid}/odontograma", data={"diente": "99", "estado": "Caries", "foto": foto()},
-                follow_redirects=True), "Selecciona un diente")
-with caso("CP-12", "Con foto válida se registra y queda pendiente de revisión"):
-    html = ok(est.post(f"/pacientes/{pid}/odontograma", data={"diente": "16", "estado": "Caries",
-                                                              "descripcion": "Operatoria clase I", "foto": foto()},
-                       follow_redirects=True), "Diente 16 registrado", "Operatoria clase I", "Pendiente")
-    archivo_foto = re.search(r"/fotos/([0-9a-f]+\.jpg)", html).group(1)
+print("Odontograma: primero la foto presencial, después el digital")
+with caso("CP-11", "Sin la foto del odontograma presencial no se puede llenar el digital"):
+    html = ok(est.get(f"/pacientes/{pid}"), "1. Foto del odontograma presencial")
+    assert "data-bloqueado" in html and "data-url" not in html
+    assert est.post("/sesiones/999/diente", json={"diente": 16, "estado": "Caries"}).status_code == 404
+    ok(est.post(f"/pacientes/{pid}/sesiones", data={"nota": "sin foto"}, follow_redirects=True), "Suba la foto")
+    ok(est.post(f"/pacientes/{pid}/sesiones", data={"foto": (io.BytesIO(b"texto"), "x.jpg")}, follow_redirects=True),
+       "Suba la foto")
+    assert sql("SELECT COUNT(*) FROM odonto_sesiones WHERE paciente_id = ?", (pid,)) == 0
+with caso("CP-12", "Con la foto se habilita el odontograma digital y se guardan los dientes"):
+    html = ok(est.post(f"/pacientes/{pid}/sesiones", data={"foto": foto(), "nota": "Práctica de diagnóstico"},
+                       follow_redirects=True), "Foto guardada", "data-url")
+    sid = sql("SELECT MAX(id) FROM odonto_sesiones")
+    archivo_foto = sql("SELECT foto FROM odonto_sesiones WHERE id = ?", (sid,))
     assert est.get(f"/fotos/{archivo_foto}").data == JPG
-with caso("CP-13", "Las fotos solo las ven el estudiante dueño y el profesor"):
+    for diente, estado in [(16, "Obturado"), (16, "Caries"), (26, "Obturado")]:
+        assert est.post(f"/sesiones/{sid}/diente", json={"diente": diente, "estado": estado}).json == {"ok": True}
+    assert est.post(f"/sesiones/{sid}/diente", json={"diente": 99, "estado": "Caries"}).status_code == 400
+    assert sql("SELECT COUNT(*) FROM odonto_registros WHERE sesion_id = ?", (sid,)) == 2  # un registro por diente
+    assert sql("SELECT estado FROM odontograma WHERE paciente_id = ? AND diente = 16", (pid,)) == "Caries"
+    ok(est.post(f"/pacientes/{pid}/sesiones", data={"foto": foto()}, follow_redirects=True), "Ya hay un odontograma en curso")
+with caso("CP-13", "Las fotos solo las ven el estudiante dueño y el docente"):
     assert ana.get(f"/fotos/{archivo_foto}").status_code == 404
     assert serv.get(f"/fotos/{archivo_foto}").status_code == 403
     assert prof.get(f"/fotos/{archivo_foto}").status_code == 200
-rid = sql("SELECT MAX(id) FROM odonto_registros")
-with caso("CP-14", "El profesor revisa: pedir corrección le aparece al estudiante"):
-    assert est.post(f"/registros/{rid}/revision", data={"revision": "Aprobado"}).status_code == 403
+    assert ana.get(f"/sesiones/{sid}").status_code == 404
+with caso("CP-14", "Enviado queda bloqueado; el docente compara foto y digital, pide corrección y luego aprueba"):
+    ok(est.post(f"/sesiones/{sid}/enviar", follow_redirects=True), "enviado al docente")
+    assert est.post(f"/sesiones/{sid}/diente", json={"diente": 11, "estado": "Corona"}).status_code == 409
     ok(prof.get("/"), "Odontogramas por revisar (1)")
-    ok(prof.post(f"/registros/{rid}/revision", data={"revision": "Corregir", "observacion": "Foto borrosa", "volver": "/"},
-                 follow_redirects=True), "Odontogramas por revisar (0)")
-    ok(est.get("/"), "Foto borrosa", "Corregir")
+    ok(prof.get(f"/sesiones/{sid}"), "Foto del odontograma presencial", "Odontograma digital", "16: Caries",
+       "Revisión del docente")
+    assert est.post(f"/sesiones/{sid}/revision", data={"revision": "Aprobado"}).status_code == 403
+    ok(prof.post(f"/sesiones/{sid}/revision", data={"revision": "Corregir", "observacion": ""}, follow_redirects=True),
+       "Escriba qué debe corregir")
+    ok(prof.post(f"/sesiones/{sid}/revision", data={"revision": "Corregir", "observacion": "Falta el 11 con corona"},
+                 follow_redirects=True), "Revisión guardada")
+    ok(est.get("/"), "Falta el 11 con corona")
+    ok(est.get(f"/pacientes/{pid}"), "pidió corregir", "data-url")
+    assert est.post(f"/sesiones/{sid}/diente", json={"diente": 11, "estado": "Corona"}).json == {"ok": True}
+    est.post(f"/sesiones/{sid}/enviar")
+    ok(prof.post(f"/sesiones/{sid}/revision", data={"revision": "Aprobado", "observacion": "Correcto"},
+                 follow_redirects=True), "Aprobado")
+    assert sql("SELECT estado FROM odonto_sesiones WHERE id = ?", (sid,)) == "Aprobado"
+    ok(prof.get("/"), "Odontogramas por revisar (0)")
 with caso("CP-15", "Una dirección de regreso externa se ignora (sin redirección abierta)"):
-    r = prof.post(f"/registros/{rid}/revision", data={"revision": "Aprobado", "volver": "//sitio-malicioso.com"})
-    assert r.location.endswith("#odontograma"), r.location
+    r = prof.post(f"/sesiones/{sid}/revision", data={"revision": "Aprobado", "volver": "//sitio-malicioso.com"})
+    assert r.location.endswith(f"/sesiones/{sid}"), r.location
 
 print("Citas")
 manana = (m.hoy() + timedelta(1)).isoformat()
@@ -226,14 +252,15 @@ with caso("CP-26", "El profesor archiva con motivo; el paciente desaparece de la
     assert est.get(f"/pacientes/{pid}").status_code == 404
     ok(prof.get("/pacientes?archivados=1"), "Luis Pérez")
     ok(prof.get(f"/pacientes/{pid}"), "Paciente archivado", "Alta del tratamiento")
-    assert sql("SELECT COUNT(*) FROM odonto_registros WHERE paciente_id = ?", (pid,)) == 1
+    assert sql("SELECT COUNT(*) FROM odonto_sesiones WHERE paciente_id = ?", (pid,)) == 1
 with caso("CP-27", "El profesor puede restaurar un paciente archivado"):
     ok(prof.post(f"/pacientes/{pid}/archivo", data={"restaurar": "1"}, follow_redirects=True), "Paciente restaurado")
     ok(est.get(f"/pacientes/{pid}"), "Luis Pérez")
 with caso("CP-28", "El historial del expediente muestra todas las acciones realizadas"):
     html = ok(prof.get(f"/pacientes/{pid}"), "Historial de cambios")
     for accion in ("Registró paciente", "Modificó datos del paciente", "Registró firma", "Aprobó paciente",
-                   "Registró práctica en odontograma", "Revisó odontograma", "Agendó cita", "Registró pago",
+                   "Subió foto del odontograma presencial", "Marcó diente en el odontograma digital",
+                   "Envió odontograma a revisión", "Revisó odontograma", "Agendó cita", "Registró pago",
                    "Archivó paciente", "Restauró paciente"):
         assert accion in html, accion
 with caso("CP-29", "Se crea una copia diaria automática de la base de datos"):

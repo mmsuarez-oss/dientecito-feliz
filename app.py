@@ -19,7 +19,7 @@ from functools import wraps
 from pathlib import Path
 from urllib.parse import quote
 
-from flask import (Flask, abort, flash, g, redirect, render_template, request,
+from flask import (Flask, abort, flash, g, jsonify, redirect, render_template, request,
                    send_file, send_from_directory, session, url_for)
 from werkzeug.security import check_password_hash, generate_password_hash
 
@@ -43,6 +43,8 @@ ESTADOS_DIENTE = {"Sano": "#ffffff", "Caries": "#c0504d", "Obturado": "#4f81bd",
                   "Corona": "#c9a94a", "Endodoncia": "#8064a2", "Extraido": "#a5a5a5"}
 ESTADOS_CITA = ["Pendiente", "Confirmada", "Atendida", "No asistió", "Cancelada"]
 TIPOS_REPORTE = ["Reparación", "Limpieza"]
+# Sesion de odontograma: Abierta -> (enviar) Pendiente -> Aprobado | Corregir -> (enviar) Pendiente ...
+EDITABLES = ("Abierta", "Corregir")
 # Numeracion FDI: arcada superior e inferior, de derecha a izquierda del paciente
 SUPERIOR = [18, 17, 16, 15, 14, 13, 12, 11, 21, 22, 23, 24, 25, 26, 27, 28]
 INFERIOR = [48, 47, 46, 45, 44, 43, 42, 41, 31, 32, 33, 34, 35, 36, 37, 38]
@@ -65,6 +67,12 @@ CREATE TABLE IF NOT EXISTS citas(
 CREATE TABLE IF NOT EXISTS odontograma(
     paciente_id INTEGER REFERENCES pacientes(id) ON DELETE CASCADE,
     diente INTEGER, estado TEXT, PRIMARY KEY(paciente_id, diente));
+CREATE TABLE IF NOT EXISTS odonto_sesiones(
+    id INTEGER PRIMARY KEY,
+    paciente_id INTEGER NOT NULL REFERENCES pacientes(id) ON DELETE CASCADE,
+    foto TEXT NOT NULL, nota TEXT, fecha TEXT NOT NULL, usuario_id INTEGER REFERENCES usuarios(id),
+    estado TEXT DEFAULT 'Abierta', enviado TEXT, observacion TEXT,
+    revisado_por INTEGER REFERENCES usuarios(id), revisado TEXT);
 CREATE TABLE IF NOT EXISTS odonto_registros(
     id INTEGER PRIMARY KEY,
     paciente_id INTEGER NOT NULL REFERENCES pacientes(id) ON DELETE CASCADE,
@@ -98,6 +106,7 @@ COLUMNAS_NUEVAS = {
                   "docente TEXT", "aprobado INTEGER DEFAULT 0", "firma TEXT", "firma_fecha TEXT",
                   "estudiante_id INTEGER REFERENCES usuarios(id)", "archivado INTEGER DEFAULT 0"],
     "citas": ["estado TEXT DEFAULT 'Pendiente'", "sala_id INTEGER REFERENCES salas(id)"],
+    "odonto_registros": ["sesion_id INTEGER REFERENCES odonto_sesiones(id)"],
 }
 CAMPOS_PACIENTE = ["nombre", "cedula", "telefono", "nacimiento", "sexo", "direccion",
                    "contacto_emergencia", "alergias", "motivo_consulta", "antecedentes",
@@ -106,10 +115,12 @@ ACTIVOS = " AND COALESCE(p.archivado, 0) = 0"  # los pacientes archivados no apa
 CITAS_SQL = """SELECT c.*, p.nombre, p.telefono, p.estudiante_id, u.nombre AS estudiante_nombre, s.nombre AS sala
                FROM citas c JOIN pacientes p ON p.id = c.paciente_id
                LEFT JOIN usuarios u ON u.id = p.estudiante_id LEFT JOIN salas s ON s.id = c.sala_id WHERE 1 = 1"""
-REGISTROS_SQL = """SELECT r.*, p.nombre AS paciente, u.nombre AS autor, v.nombre AS revisor
-                   FROM odonto_registros r JOIN pacientes p ON p.id = r.paciente_id
-                   LEFT JOIN usuarios u ON u.id = r.usuario_id LEFT JOIN usuarios v ON v.id = r.revisado_por
-                   WHERE 1 = 1"""
+SESIONES_SQL = """SELECT s.*, p.nombre AS paciente, u.nombre AS autor, v.nombre AS revisor,
+                         (SELECT GROUP_CONCAT(r.diente || ': ' || r.estado, ' · ') FROM odonto_registros r
+                          WHERE r.sesion_id = s.id) AS cambios
+                  FROM odonto_sesiones s JOIN pacientes p ON p.id = s.paciente_id
+                  LEFT JOIN usuarios u ON u.id = s.usuario_id LEFT JOIN usuarios v ON v.id = s.revisado_por
+                  WHERE 1 = 1"""
 BITACORA_SQL = """SELECT b.*, u.nombre AS usuario, p.nombre AS paciente FROM bitacora b
                   LEFT JOIN usuarios u ON u.id = b.usuario_id LEFT JOIN pacientes p ON p.id = b.paciente_id"""
 REPORTES_SQL = """SELECT r.*, s.nombre AS sala, u.nombre AS reporta, a.nombre AS atiende
@@ -120,7 +131,9 @@ app = Flask(__name__)
 app.secret_key = os.environ.get("DIENTECITO_SECRETO") or secrets.token_hex(16)
 app.config["MAX_CONTENT_LENGTH"] = 15 * 1024 * 1024  # fotos de hasta 15 MB
 app.jinja_env.globals.update(ESTADOS_DIENTE=ESTADOS_DIENTE, ESTADOS_CITA=ESTADOS_CITA, SUPERIOR=SUPERIOR,
-                             INFERIOR=INFERIOR, DEMO=DEMO, ROLES=ROLES, TIPOS_REPORTE=TIPOS_REPORTE)
+                             INFERIOR=INFERIOR, DEMO=DEMO, ROLES=ROLES, TIPOS_REPORTE=TIPOS_REPORTE,
+                             ESTADO_SESION={"Abierta": "En edición", "Pendiente": "Por revisar",
+                                            "Aprobado": "Aprobado", "Corregir": "Corregir"})
 
 
 # ---------- base de datos ----------
@@ -132,6 +145,14 @@ def iniciar_db():
         for col in columnas:
             if col.split()[0] not in existentes:
                 con.execute(f"ALTER TABLE {tabla} ADD COLUMN {col}")
+    # Registros de la version anterior (una foto por diente): cada uno pasa a ser una sesion con su foto
+    viejos = con.execute("SELECT id, paciente_id, foto, descripcion, fecha, usuario_id, revision, observacion, "
+                         "revisado_por FROM odonto_registros WHERE sesion_id IS NULL").fetchall()
+    for rid, pid, foto, nota, fecha, uid, revision, observacion, revisor in viejos:
+        sid = con.execute("INSERT INTO odonto_sesiones(paciente_id, foto, nota, fecha, usuario_id, estado, enviado, "
+                          "observacion, revisado_por) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                          (pid, foto, nota, fecha, uid, revision or "Pendiente", fecha, observacion, revisor)).lastrowid
+        con.execute("UPDATE odonto_registros SET sesion_id = ? WHERE id = ?", (sid, rid))
     if not con.execute("SELECT 1 FROM usuarios").fetchone():
         for usuario, nombre, rol in [("profesor", "Profesor de prueba", "profesor"),
                                      ("estudiante", "Estudiante de prueba", "estudiante"),
@@ -300,12 +321,12 @@ def menu_y_avisos():
     if es("servicios"):
         contadores["avisos"] = q("SELECT COUNT(*) FROM reportes WHERE estado != 'Resuelto'", uno=True)[0]
     elif es("profesor"):
-        contadores["inicio"] = q("SELECT (SELECT COUNT(*) FROM odonto_registros r JOIN pacientes p ON p.id = r.paciente_id "
-                                 "WHERE r.revision = 'Pendiente'" + ACTIVOS + ") + (SELECT COUNT(*) FROM pacientes p "
+        contadores["inicio"] = q("SELECT (SELECT COUNT(*) FROM odonto_sesiones s JOIN pacientes p ON p.id = s.paciente_id "
+                                 "WHERE s.estado = 'Pendiente'" + ACTIVOS + ") + (SELECT COUNT(*) FROM pacientes p "
                                  "WHERE COALESCE(p.aprobado, 0) = 0" + ACTIVOS + ")", uno=True)[0]
     else:
-        contadores["inicio"] = q("SELECT COUNT(*) FROM odonto_registros r JOIN pacientes p ON p.id = r.paciente_id "
-                                 "WHERE r.revision = 'Corregir'" + alcance() + ACTIVOS, uno=True)[0]
+        contadores["inicio"] = q("SELECT COUNT(*) FROM odonto_sesiones s JOIN pacientes p ON p.id = s.paciente_id "
+                                 "WHERE s.estado = 'Corregir'" + alcance() + ACTIVOS, uno=True)[0]
     return {"menu": MENUS[g.usuario["rol"]], "contadores": contadores}
 
 
@@ -423,12 +444,12 @@ def inicio():
     if es("estudiante"):
         datos["por_recordar"] = q(CITAS_SQL + alcance() + ACTIVOS + " AND c.fecha > ? AND c.fecha <= ? AND c.estado = 'Pendiente'"
                                   " ORDER BY c.fecha, c.hora", (d, (hoy() + timedelta(3)).isoformat()))
-        datos["registros"] = q(REGISTROS_SQL + alcance() + ACTIVOS + " AND r.revision != 'Aprobado' ORDER BY r.fecha DESC")
+        datos["sesiones"] = q(SESIONES_SQL + alcance() + ACTIVOS + " AND s.estado != 'Aprobado' ORDER BY s.fecha DESC")
     else:
         datos["por_aprobar"] = q("SELECT p.*, u.nombre AS estudiante_nombre FROM pacientes p "
                                  "LEFT JOIN usuarios u ON u.id = p.estudiante_id "
                                  "WHERE COALESCE(p.aprobado, 0) = 0" + ACTIVOS + " ORDER BY p.nombre")
-        datos["registros"] = q(REGISTROS_SQL + ACTIVOS + " AND r.revision = 'Pendiente' ORDER BY r.fecha")
+        datos["sesiones"] = q(SESIONES_SQL + ACTIVOS + " AND s.estado = 'Pendiente' ORDER BY s.enviado")
     return render_template(f"inicio_{g.usuario['rol']}.html", **datos)
 
 
@@ -487,11 +508,15 @@ def paciente_form(pid=None):
 @solo("estudiante", "profesor")
 def expediente(pid):
     p = paciente_o_404(pid)
+    abierta = q(SESIONES_SQL + " AND s.paciente_id = ? AND s.estado IN ('Abierta', 'Corregir')", (pid,), uno=True)
     return render_template(
         "expediente.html", p=p,
         estudiante=q("SELECT nombre FROM usuarios WHERE id = ?", (p["estudiante_id"],), uno=True),
         dientes={d: e for d, e in q("SELECT diente, estado FROM odontograma WHERE paciente_id = ?", (pid,))},
-        registros=q(REGISTROS_SQL + " AND r.paciente_id = ? ORDER BY r.fecha DESC, r.id DESC", (pid,)),
+        sesiones=q(SESIONES_SQL + " AND s.paciente_id = ? ORDER BY s.id DESC", (pid,)),
+        abierta=abierta,
+        marcados=[r["diente"] for r in q("SELECT diente FROM odonto_registros WHERE sesion_id = ?",
+                                         (abierta["id"],))] if abierta else [],
         citas=q(CITAS_SQL + " AND c.paciente_id = ? ORDER BY c.fecha DESC, c.hora DESC", (pid,)),
         tratamientos=q("SELECT * FROM tratamientos WHERE paciente_id = ? ORDER BY id DESC", (pid,)),
         tarifario=q("SELECT * FROM tarifario ORDER BY procedimiento"),
@@ -520,45 +545,115 @@ def paciente_archivar(pid):
     return redirect(url_for("pacientes"))
 
 
-@app.post("/pacientes/<int:pid>/odontograma")
+def sesion_o_404(sid):
+    """Sesion de odontograma de un paciente al que el usuario tiene acceso."""
+    return q("SELECT s.* FROM odonto_sesiones s JOIN pacientes p ON p.id = s.paciente_id WHERE s.id = ?" + alcance(),
+             (sid,), uno=True) or abort(404)
+
+
+@app.post("/pacientes/<int:pid>/sesiones")
 @solo("estudiante", "profesor")
-def registrar_odontograma(pid):
+def sesion_nueva(pid):
+    """Paso 1: sin la foto del odontograma presencial no se puede llenar el digital."""
     paciente_o_404(pid)
-    diente = request.form.get("diente", type=int)
-    estado = request.form.get("estado")
-    if diente not in SUPERIOR + INFERIOR or estado not in ESTADOS_DIENTE:
-        flash("Selecciona un diente en el odontograma y el estado.", "error")
+    if q("SELECT 1 FROM odonto_sesiones WHERE paciente_id = ? AND estado IN ('Abierta', 'Corregir')", (pid,), uno=True):
+        flash("Ya hay un odontograma en curso para este paciente. Termínelo y envíelo a revisión.", "error")
     elif not (foto := guardar_foto(request.files.get("foto"))):
-        flash("Debes adjuntar una foto de la práctica realizada (JPG o PNG).", "error")
+        flash("Suba la foto del odontograma presencial (JPG o PNG) para poder llenar el digital.", "error")
     else:
-        ejecutar("INSERT INTO odonto_registros(paciente_id, diente, estado, descripcion, foto, fecha, usuario_id) "
-                 "VALUES (?, ?, ?, ?, ?, ?, ?)",
-                 (pid, diente, estado, request.form.get("descripcion", "").strip(), foto,
-                  ahora().strftime("%Y-%m-%d %H:%M"), g.usuario["id"]))
-        ejecutar("INSERT OR REPLACE INTO odontograma VALUES (?, ?, ?)", (pid, diente, estado))
-        anotar("Registró práctica en odontograma", f"Diente {diente}: {estado}", pid)
-        flash(f"Diente {diente} registrado como {estado}. Queda pendiente de revisión del profesor.", "ok")
+        sid = ejecutar("INSERT INTO odonto_sesiones(paciente_id, foto, nota, fecha, usuario_id) VALUES (?, ?, ?, ?, ?)",
+                       (pid, foto, request.form.get("nota", "").strip(), ahora().strftime("%Y-%m-%d %H:%M"),
+                        g.usuario["id"]))
+        anotar("Subió foto del odontograma presencial", f"Sesión {sid}", pid)
+        flash("Foto guardada. Ahora llene el odontograma digital y envíelo a revisión.", "ok")
     return volver(pid, "odontograma")
 
 
-@app.post("/registros/<int:rid>/revision")
+@app.post("/sesiones/<int:sid>/diente")
+@solo("estudiante", "profesor")
+def sesion_diente(sid):
+    """Paso 2: marcar dientes en el odontograma digital de una sesion con foto."""
+    s = sesion_o_404(sid)
+    datos = request.get_json(silent=True) or {}
+    diente, estado = datos.get("diente"), datos.get("estado")
+    if s["estado"] not in EDITABLES:
+        return jsonify(error="Este odontograma ya fue enviado a revisión y no se puede modificar."), 409
+    if estado not in ESTADOS_DIENTE or diente not in SUPERIOR + INFERIOR:
+        abort(400)
+    ejecutar("DELETE FROM odonto_registros WHERE sesion_id = ? AND diente = ?", (sid, diente))
+    ejecutar("INSERT INTO odonto_registros(paciente_id, diente, estado, foto, fecha, usuario_id, sesion_id) "
+             "VALUES (?, ?, ?, ?, ?, ?, ?)",
+             (s["paciente_id"], diente, estado, s["foto"], ahora().strftime("%Y-%m-%d %H:%M"), g.usuario["id"], sid))
+    ejecutar("INSERT OR REPLACE INTO odontograma VALUES (?, ?, ?)", (s["paciente_id"], diente, estado))
+    anotar("Marcó diente en el odontograma digital", f"Sesión {sid}. Diente {diente}: {estado}", s["paciente_id"])
+    return jsonify(ok=True)
+
+
+@app.post("/sesiones/<int:sid>/foto")
+@solo("estudiante", "profesor")
+def sesion_foto(sid):
+    s = sesion_o_404(sid)
+    if s["estado"] not in EDITABLES:
+        flash("Este odontograma ya fue enviado a revisión.", "error")
+    elif not (foto := guardar_foto(request.files.get("foto"))):
+        flash("El archivo no es una imagen válida (JPG o PNG).", "error")
+    else:
+        ejecutar("UPDATE odonto_sesiones SET foto = ? WHERE id = ?", (foto, sid))
+        ejecutar("UPDATE odonto_registros SET foto = ? WHERE sesion_id = ?", (foto, sid))
+        anotar("Cambió la foto del odontograma presencial", f"Sesión {sid}. Foto anterior: {s['foto']}", s["paciente_id"])
+        flash("Foto reemplazada.", "ok")
+    return volver(s["paciente_id"], "odontograma")
+
+
+@app.post("/sesiones/<int:sid>/enviar")
+@solo("estudiante", "profesor")
+def sesion_enviar(sid):
+    """Paso 3: el odontograma queda bloqueado hasta que el docente lo revise."""
+    s = sesion_o_404(sid)
+    if s["estado"] in EDITABLES:
+        ejecutar("UPDATE odonto_sesiones SET estado = 'Pendiente', enviado = ? WHERE id = ?",
+                 (ahora().strftime("%Y-%m-%d %H:%M"), sid))
+        anotar("Envió odontograma a revisión", f"Sesión {sid}", s["paciente_id"])
+        flash("Odontograma enviado al docente para su revisión.", "ok")
+    return volver(s["paciente_id"], "odontograma")
+
+
+@app.route("/sesiones/<int:sid>")
+@solo("estudiante", "profesor")
+def sesion_ver(sid):
+    """Foto presencial junto al odontograma digital: pantalla de revision del docente."""
+    s = q(SESIONES_SQL + " AND s.id = ?" + alcance(), (sid,), uno=True) or abort(404)
+    return render_template(
+        "sesion.html", s=s,
+        dientes={d: e for d, e in q("SELECT diente, estado FROM odontograma WHERE paciente_id = ?", (s["paciente_id"],))},
+        registros=q("SELECT * FROM odonto_registros WHERE sesion_id = ? ORDER BY diente", (sid,)))
+
+
+@app.post("/sesiones/<int:sid>/revision")
 @solo("profesor")
-def revisar_registro(rid):
-    r = q("SELECT * FROM odonto_registros WHERE id = ?", (rid,), uno=True) or abort(404)
-    if request.form.get("revision") in ("Aprobado", "Corregir"):
-        ejecutar("UPDATE odonto_registros SET revision = ?, observacion = ?, revisado_por = ? WHERE id = ?",
-                 (request.form["revision"], request.form.get("observacion", "").strip(), g.usuario["id"], rid))
-        anotar(f"Revisó odontograma: {request.form['revision']}",
-               f"Diente {r['diente']}. {request.form.get('observacion', '').strip()}".strip(), r["paciente_id"])
+def sesion_revision(sid):
+    s = sesion_o_404(sid)
+    revision = request.form.get("revision")
+    observacion = request.form.get("observacion", "").strip()
+    if s["estado"] not in ("Pendiente", "Aprobado"):
+        flash("Solo se revisan odontogramas enviados por el estudiante.", "error")
+    elif revision == "Corregir" and not observacion:
+        flash("Escriba qué debe corregir el estudiante.", "error")
+    elif revision in ("Aprobado", "Corregir"):
+        ejecutar("UPDATE odonto_sesiones SET estado = ?, observacion = ?, revisado_por = ?, revisado = ? WHERE id = ?",
+                 (revision, observacion, g.usuario["id"], ahora().strftime("%Y-%m-%d %H:%M"), sid))
+        anotar(f"Revisó odontograma: {revision}", f"Sesión {sid}. {observacion}".strip(), s["paciente_id"])
         flash("Revisión guardada.", "ok")
-    return regresar(url_for("expediente", pid=r["paciente_id"], _anchor="odontograma"))
+    return regresar(url_for("sesion_ver", sid=sid))
 
 
 @app.route("/fotos/<nombre>")
 @solo("estudiante", "profesor")
 def foto(nombre):
-    q("SELECT r.id FROM odonto_registros r JOIN pacientes p ON p.id = r.paciente_id WHERE r.foto = ?" + alcance(),
-      (nombre,), uno=True) or abort(404)
+    # El docente tiene acceso a todas las fotos; el estudiante, solo a las de sus pacientes
+    if es("estudiante"):
+        q("SELECT s.id FROM odonto_sesiones s JOIN pacientes p ON p.id = s.paciente_id WHERE s.foto = ?" + alcance(),
+          (nombre,), uno=True) or abort(404)
     return send_from_directory(FOTOS, nombre)
 
 

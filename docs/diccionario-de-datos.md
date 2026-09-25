@@ -10,8 +10,8 @@ Las fechas se guardan como texto ISO (`AAAA-MM-DD` o `AAAA-MM-DD HH:MM`) en hora
 ```
 usuarios ─┬─< pacientes (estudiante_id) ─┬─< citas >── salas ──< reportes >── usuarios
           │                              ├─< odontograma
-          ├─< odonto_registros >─────────┤
-          │   (usuario_id, revisado_por) ├─< tratamientos
+          ├─< odonto_sesiones >──────────┤   (una sesión = foto presencial + odontograma digital)
+          │        └─< odonto_registros  ├─< tratamientos
           └─< bitacora >─────────────────┘
 tarifario, inventario: tablas independientes
 ```
@@ -71,7 +71,7 @@ Expediente clínico del paciente.
 **Reglas:** un paciente no puede tener dos citas activas el mismo día. Un estudiante no puede tener dos citas a la misma hora. Una sala no puede usarse dos veces a la misma hora.
 
 ## odontograma
-Estado **actual** de cada diente. Solo cambia mediante un registro con foto (`odonto_registros`).
+Estado **actual** de cada diente. Solo cambia al marcar dientes dentro de una sesión que ya tiene su foto presencial.
 
 | Campo | Tipo | Restricciones | Descripción |
 |---|---|---|---|
@@ -79,22 +79,39 @@ Estado **actual** de cada diente. Solo cambia mediante un registro con foto (`od
 | diente | INTEGER | PK | Número FDI (11–18, 21–28, 31–38, 41–48) |
 | estado | TEXT | | `Sano`, `Caries`, `Obturado`, `Corona`, `Endodoncia` o `Extraido` |
 
+## odonto_sesiones
+Cada vez que se llena un odontograma. **Primero se sube la foto del odontograma presencial** (obligatoria). Solo con una sesión abierta se habilita el odontograma digital.
+
+| Campo | Tipo | Restricciones | Descripción |
+|---|---|---|---|
+| id | INTEGER | PK | Identificador de la sesión |
+| paciente_id | INTEGER | NN, FK → pacientes.id | Paciente |
+| foto | TEXT | NN | Foto del odontograma presencial (archivo en `fotos/`). Se verifica que sea JPG, PNG, WEBP o HEIC |
+| nota | TEXT | | Tipo de práctica u observaciones del estudiante |
+| fecha | TEXT | NN | Fecha y hora en que se subió la foto |
+| usuario_id | INTEGER | FK → usuarios.id | Quién subió la foto |
+| estado | TEXT | Por defecto `Abierta` | `Abierta` (en edición) → `Pendiente` (enviada al docente) → `Aprobado` o `Corregir` (vuelve a ser editable) |
+| enviado | TEXT | | Fecha y hora del último envío a revisión |
+| observacion | TEXT | | Comentario del docente; obligatorio al pedir corrección |
+| revisado_por | INTEGER | FK → usuarios.id | Docente que revisó |
+| revisado | TEXT | | Fecha y hora de la revisión |
+
+**Reglas:** un paciente solo puede tener una sesión en edición (`Abierta` o `Corregir`) a la vez. Una sesión `Pendiente` o `Aprobado` no se puede modificar.
+
 ## odonto_registros
-Historial de prácticas realizadas en el odontograma, cada una con su foto de evidencia.
+Dientes marcados en el odontograma digital de cada sesión.
 
 | Campo | Tipo | Restricciones | Descripción |
 |---|---|---|---|
 | id | INTEGER | PK | Identificador del registro |
+| sesion_id | INTEGER | FK → odonto_sesiones.id | Sesión a la que pertenece. Hay un registro por diente en cada sesión |
 | paciente_id | INTEGER | NN, FK → pacientes.id | Paciente |
-| diente | INTEGER | NN | Diente trabajado (número FDI) |
-| estado | TEXT | NN | Estado en que quedó el diente |
-| descripcion | TEXT | | Procedimiento realizado |
-| foto | TEXT | NN | Nombre del archivo de la foto en la carpeta `fotos/`. Se verifica que sea JPG, PNG, WEBP o HEIC |
-| fecha | TEXT | NN | Fecha y hora del registro |
-| usuario_id | INTEGER | FK → usuarios.id | Quién registró la práctica |
-| revision | TEXT | Por defecto `Pendiente` | `Pendiente`, `Aprobado` o `Corregir` |
-| observacion | TEXT | | Comentario del profesor |
-| revisado_por | INTEGER | FK → usuarios.id | Profesor que revisó |
+| diente | INTEGER | NN | Diente marcado (número FDI) |
+| estado | TEXT | NN | Estado marcado |
+| foto | TEXT | NN | Copia del nombre de la foto de la sesión |
+| fecha | TEXT | NN | Fecha y hora en que se marcó |
+| usuario_id | INTEGER | FK → usuarios.id | Quién lo marcó |
+| descripcion, revision, observacion, revisado_por | | | *Obsoletos*: de la versión con una foto por diente. Al actualizar, esos registros se convierten en sesiones |
 
 ## tratamientos
 Plan de tratamiento y cobros del paciente.
@@ -166,5 +183,5 @@ Registro de auditoría: quién hizo qué y cuándo. La aplicación solo agrega r
 ## Archivos fuera de la base de datos
 | Carpeta | Contenido |
 |---|---|
-| `fotos/` | Fotos de las prácticas del odontograma, reducidas a un máximo de 1600 px. Nunca se borran |
+| `fotos/` | Fotos de los odontogramas presenciales, reducidas a un máximo de 1600 px. Nunca se borran |
 | `respaldos/` | Copia automática diaria de la base de datos; se conservan las últimas 14 |

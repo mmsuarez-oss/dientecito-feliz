@@ -1,0 +1,62 @@
+{% extends 'base.html' %}
+{% from '_macros.html' import odontograma with context %}
+{% block titulo %}Odontograma de {{ s.paciente }}{% endblock %}
+{% block contenido %}
+<p><a href="{{ url_for('expediente', pid=s.paciente_id, _anchor='odontograma') }}">&larr; Expediente de {{ s.paciente }}</a></p>
+
+<div class="ficha">
+  <div>
+    <h1>Odontograma de {{ s.paciente }}</h1>
+    <div class="tenue">Foto subida el {{ s.fecha }} por {{ s.autor }}{% if s.enviado %} · enviado a revisión el {{ s.enviado }}{% endif %}</div>
+    <div>Estado:
+      <span class="{{ {'Aprobado': 'verde', 'Corregir': 'rojo', 'Pendiente': 'amarillo'}.get(s.estado, 'tenue') }}">{{ ESTADO_SESION[s.estado] }}</span>
+      {% if s.revisor %}<span class="tenue"> · {{ s.revisor }}, {{ s.revisado }}</span>{% endif %}
+    </div>
+    {% if s.observacion %}<div>Observación del docente: {{ s.observacion }}</div>{% endif %}
+    {% if s.nota %}<div class="tenue">Nota: {{ s.nota }}</div>{% endif %}
+  </div>
+</div>
+
+<div class="columnas anchas">
+  <div>
+    <h2>Foto del odontograma presencial</h2>
+    <a href="{{ url_for('foto', nombre=s.foto) }}" target="_blank" title="Abrir en tamaño completo">
+      <img class="foto-grande" src="{{ url_for('foto', nombre=s.foto) }}" alt="Foto del odontograma presencial">
+    </a>
+    <p class="tenue">Toque la foto para verla en tamaño completo.</p>
+  </div>
+  <div>
+    <h2>Odontograma digital</h2>
+    {{ odontograma(dientes, resaltados=registros|map(attribute='diente')|list) }}
+    <div class="tabla">
+      <table>
+        <thead><tr><th>Diente</th><th>Estado marcado</th><th>Marcó</th></tr></thead>
+        <tbody>
+        {% for r in registros %}
+          <tr><td>{{ r.diente }}</td><td>{{ r.estado|replace('Extraido', 'Extraído') }}</td><td class="fecha">{{ r.fecha }}</td></tr>
+        {% else %}
+          <tr><td class="vacio" colspan="3">No se marcaron dientes: sin hallazgos.</td></tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <p class="tenue">El odontograma muestra el estado actual del paciente. Los dientes con marco son los de esta sesión.</p>
+
+    {% if g.usuario.rol == 'profesor' and s.estado in ('Pendiente', 'Aprobado') %}
+    <form method="post" action="{{ url_for('sesion_revision', sid=s.id) }}">
+      <fieldset>
+        <legend>Revisión del docente</legend>
+        <label class="campo arriba"><span>Observación:</span>
+          <textarea name="observacion" rows="3" placeholder="Obligatoria si pide corrección">{{ s.observacion or '' }}</textarea></label>
+        <div class="acciones">
+          <button class="btn peligro" name="revision" value="Corregir">Pedir corrección</button>
+          {% if s.estado == 'Pendiente' %}<button class="btn" name="revision" value="Aprobado">Aprobar</button>{% endif %}
+        </div>
+      </fieldset>
+    </form>
+    {% elif s.estado in ('Abierta', 'Corregir') %}
+    <p><a class="btn" href="{{ url_for('expediente', pid=s.paciente_id, _anchor='odontograma') }}">Continuar llenando el odontograma</a></p>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

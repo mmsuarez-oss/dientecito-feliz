@@ -1,5 +1,5 @@
 {% extends 'base.html' %}
-{% from '_macros.html' import tabla_citas, tabla_salas, tabla_registros with context %}
+{% from '_macros.html' import tabla_citas, tabla_salas, tabla_sesiones with context %}
 {% block contenido %}
 <p class="tenue">Hoy es {{ hoy|fecha_larga }}.</p>
 
@@ -12,9 +12,9 @@
 {{ tabla_citas(por_recordar) }}
 {% endif %}
 
-<h2>Mis registros de odontograma</h2>
-<p class="tenue">Registros que el profesor aún no aprueba o que debes corregir.</p>
-{{ tabla_registros(registros, con_paciente=true, vacio='No tienes registros pendientes.') }}
+<h2>Mis odontogramas</h2>
+<p class="tenue">Odontogramas en edición, enviados al docente o que debe corregir.</p>
+{{ tabla_sesiones(sesiones, con_paciente=true, vacio='No tiene odontogramas pendientes.') }}
 
 <h2>Estado de las salas</h2>
 {{ tabla_salas(salas) }}

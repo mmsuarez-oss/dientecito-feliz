@@ -5,8 +5,8 @@ Sistema de gestión para la **Clínica Odontológica UAM**. Es una aplicación w
 ## Interfaces por rol
 | Rol | Qué puede hacer |
 |---|---|
-| **Estudiante** | Registrar a sus pacientes y llevar su historia clínica. Registrar el odontograma con una **foto obligatoria de la práctica**. Tomar el consentimiento con firma. Llevar tratamientos y cobros. Agendar citas y enviar recordatorios por WhatsApp. Reportar salas. |
-| **Profesor** | Ver a todos los pacientes. **Revisar las fotos del odontograma** y aprobarlas o pedir corrección. Aprobar pacientes. Administrar usuarios, tarifario e inventario. |
+| **Estudiante** | Registrar a sus pacientes y llevar su historia clínica. Llenar el odontograma: **primero la foto del odontograma presencial**, después el odontograma digital, y enviarlo al docente. Tomar el consentimiento con firma. Llevar tratamientos y cobros. Agendar citas y enviar recordatorios por WhatsApp. Reportar salas. |
+| **Profesor** | Ver a todos los pacientes. **Revisar cada odontograma comparando la foto presencial con el digital** y aprobarlo o pedir corrección. Tiene acceso a todas las fotos. Aprobar pacientes. Administrar usuarios, tarifario e inventario. |
 | **Servicios** | Recibir los **avisos de salas** que necesitan reparación o limpieza y marcarlos como atendidos o resueltos. Administrar salas e inventario. |
 
 Cuentas de ejemplo que se crean la primera vez: `estudiante`, `profesor` y `servicios`, todas con la clave `uam2026` (se puede cambiar con la variable de entorno `DIENTECITO_CLAVE`). El profesor crea las demás cuentas en la pestaña *Usuarios*.

@@ -1,11 +1,11 @@
 {% extends 'base.html' %}
-{% from '_macros.html' import tabla_citas, tabla_salas, tabla_registros with context %}
+{% from '_macros.html' import tabla_citas, tabla_salas, tabla_sesiones with context %}
 {% block contenido %}
 <p class="tenue">Hoy es {{ hoy|fecha_larga }}.</p>
 
-<h2>Odontogramas por revisar ({{ registros|length }})</h2>
-<p class="tenue">Revise la foto de cada práctica y apruébela o pida corrección.</p>
-{{ tabla_registros(registros, con_paciente=true, revisar=true, vacio='No hay registros pendientes de revisión.') }}
+<h2>Odontogramas por revisar ({{ sesiones|length }})</h2>
+<p class="tenue">Compare la foto del odontograma presencial con el odontograma digital y apruébelo o pida corrección.</p>
+{{ tabla_sesiones(sesiones, con_paciente=true, revisar=true, vacio='No hay odontogramas pendientes de revisión.') }}
 
 <h2>Pacientes por aprobar ({{ por_aprobar|length }})</h2>
 <div class="tabla">

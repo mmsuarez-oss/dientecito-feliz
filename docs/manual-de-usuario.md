@@ -24,7 +24,7 @@ Pestañas: **Inicio · Mis pacientes · Citas · Salas**
 Muestra:
 - Sus citas de hoy.
 - Las citas de los próximos 3 días que aún no están confirmadas.
-- Los registros de odontograma que el profesor todavía no aprueba o que le pidió **corregir**, con su observación.
+- Sus odontogramas en edición, enviados al docente o que debe **corregir**, con la observación del docente.
 - El estado de las salas.
 
 ### Registrar un paciente
@@ -41,19 +41,21 @@ Tiene cinco secciones:
 | Sección | Para qué sirve |
 |---|---|
 | Historia clínica | Consultar los datos. Con **Completar historia clínica** se editan |
-| Odontograma | Registrar las prácticas realizadas, con su foto |
+| Odontograma | Foto del odontograma presencial y odontograma digital |
 | Tratamientos y cobros | Plan de tratamiento, pagos y saldo |
 | Consentimiento | Firma del paciente en la pantalla |
 | Citas | Historial de citas del paciente |
 
-### Registrar una práctica en el odontograma
-1. En la sección **Odontograma**, **toque el diente** trabajado. Queda marcado con un recuadro.
-2. Elija el **estado** en que quedó el diente (caries, obturado, corona, endodoncia, extraído o sano).
-3. Escriba una breve **descripción** del procedimiento.
-4. En **Foto**, adjunte la foto de la práctica. En el teléfono puede tomarla con la cámara en ese momento.
-5. Presione **Guardar registro**.
+### Llenar el odontograma (primero la foto presencial)
+El odontograma digital **no se puede llenar sin antes subir la foto del odontograma presencial**. Mientras no haya foto, los dientes aparecen atenuados y no responden.
 
-La foto es **obligatoria**: sin ella el registro no se guarda. Queda **pendiente** hasta que el profesor la revise. Si el profesor pide corregir, verá su observación en *Inicio* y deberá registrar la práctica de nuevo con una foto adecuada.
+1. **Foto presencial.** En la sección **Odontograma**, en *Foto*, adjunte la foto del odontograma que se hizo en papel durante la práctica. En el teléfono puede tomarla con la cámara en ese momento. Si quiere, agregue una nota y presione **Subir foto y continuar**.
+2. **Odontograma digital.** Elija el **estado** (caries, obturado, corona, endodoncia, extraído o sano) y **toque los dientes** tal como aparecen en la foto. Cada diente se guarda al instante y queda con un marco. Si se equivoca, elija el estado correcto y toque el diente otra vez. Mientras no lo envíe, puede cambiar la foto con **Cambiar foto**.
+3. **Enviar a revisión.** Al terminar, presione **Enviar a revisión del docente**. Desde ese momento el odontograma queda bloqueado mientras el docente lo revisa.
+
+Si el docente pide **corregir**, verá su observación en *Inicio* y en el expediente. El odontograma se desbloquea: corrija los dientes y envíelo de nuevo.
+
+Solo puede haber un odontograma en edición por paciente. El **Historial de odontogramas** muestra todos los anteriores con su foto; con **Ver** se abren la foto y el odontograma digital lado a lado.
 
 ### Consentimiento informado
 1. Lea el texto al paciente.
@@ -89,9 +91,15 @@ Pestañas: **Inicio · Pacientes · Citas · Salas · Tarifario · Usuarios · B
 El número junto a *Inicio* indica cuántos pendientes tiene.
 
 ### Revisar odontogramas
-En **Inicio → Odontogramas por revisar** aparece cada práctica con su foto. Toque la foto para verla en grande.
-- **Aprobar** confirma la práctica.
-- **Corregir** la devuelve al estudiante. Escriba en *Observación* lo que debe corregir.
+En **Inicio → Odontogramas por revisar** aparecen los odontogramas que los estudiantes enviaron. Presione **Revisar** para abrir la pantalla de revisión:
+- A la izquierda, la **foto del odontograma presencial**. Tóquela para verla en tamaño completo.
+- A la derecha, el **odontograma digital**, con marco en los dientes marcados en esa sesión, y la lista de dientes con su estado.
+
+Compare ambos y elija:
+- **Aprobar** confirma el odontograma.
+- **Pedir corrección** lo devuelve al estudiante. La *Observación* es obligatoria: indique qué debe corregir.
+
+El docente tiene acceso a todas las fotos y a todos los odontogramas de todos los pacientes, también desde el expediente (*Historial de odontogramas*).
 
 ### Aprobar pacientes
 - En **Inicio → Pacientes por aprobar**, presione **Aprobar**.
@@ -156,4 +164,6 @@ Quien hizo el reporte verá el cambio de estado en la pestaña *Salas*.
 
 **No veo a un paciente.** Los estudiantes solo ven a sus propios pacientes. También es posible que esté archivado; pregunte a un profesor.
 
-**Me equivoqué en un registro del odontograma.** Registre de nuevo la práctica con el estado correcto. El historial conserva ambos registros y el profesor revisará el último.
+**Me equivoqué en un diente.** Si todavía no lo envió, elija el estado correcto y toque el diente otra vez. Si ya lo envió, espere la revisión o pida al docente que solicite corrección.
+
+**Los dientes no responden.** Falta subir la foto del odontograma presencial (paso 1), o el odontograma ya fue enviado y está en revisión.

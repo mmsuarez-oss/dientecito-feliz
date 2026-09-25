@@ -103,10 +103,11 @@ td select { width: auto; min-height: 26px; padding: 1px 4px; }
 @media (max-width: 600px) { .datos { grid-template-columns: 1fr; } .datos dt { border-bottom: 0; } }
 
 /* odontograma (igual al de la primera version) */
-.odonto { background: #fafbfc; border: 1px solid var(--borde); padding: 10px 8px 12px; margin-bottom: 12px; }
+.odonto { overflow: hidden; background: #fafbfc; border: 1px solid var(--borde); padding: 10px 8px 12px; margin-bottom: 12px; }
 .arcada-titulo { text-align: center; font-weight: 600; margin: 4px 0 6px; }
-.arcada { display: grid; grid-template-columns: repeat(8, 38px) 48px repeat(7, 38px); gap: 6px 8px; justify-content: center; }
-.arcada .diente:nth-child(9) { margin-left: 10px; }
+.arcada { display: grid; grid-template-columns: repeat(8, minmax(0, 38px)) 6px repeat(8, minmax(0, 38px));
+          gap: 6px clamp(3px, 0.6vw, 8px); justify-content: center; }
+.arcada .diente:nth-child(9) { grid-column-start: 10; }  /* linea media */
 .diente { padding: 0; border: 0; background: none; font: inherit; font-size: 12px; color: var(--texto); cursor: pointer; text-align: center; }
 .diente span { display: block; height: 50px; border: 1px solid #5a6068; background: var(--color); margin-bottom: 2px; }
 .diente[data-estado="Extraido"] span {
@@ -114,11 +115,21 @@ td select { width: auto; min-height: 26px; padding: 1px 4px; }
               linear-gradient(to top left, transparent calc(50% - 2px), var(--rojo) calc(50% - 2px), var(--rojo) calc(50% + 2px), transparent calc(50% + 2px)),
               var(--color);
 }
-.diente.elegido span { outline: 2px solid var(--azul); outline-offset: 2px; }
-.diente.elegido { font-weight: 700; }
+.diente.resaltado span { outline: 2px solid var(--azul); outline-offset: 2px; }
+.diente.resaltado { font-weight: 700; }
+.odonto[data-bloqueado] .arcada { opacity: .55; }
+.odonto[data-bloqueado] .diente { cursor: not-allowed; }
+.leyenda i.marco { background: #fff; outline: 2px solid var(--azul); outline-offset: 1px; }
+.pasos { margin: 0 0 10px; padding-left: 22px; }
+.pasos li { margin-bottom: 8px; }
+.pasos li.hecho::marker { color: var(--verde); }
+.pasos details { display: inline-block; margin-left: 8px; }
+.pasos summary { cursor: pointer; color: var(--azul); text-decoration: underline; }
+.pasos details form { margin-top: 6px; }
+.foto-grande { display: block; max-width: 100%; max-height: 70vh; border: 1px solid var(--borde); background: #f4f5f7; }
 @media (max-width: 760px) {
   .arcada { grid-template-columns: repeat(8, 1fr); gap: 6px; }
-  .arcada .diente:nth-child(9) { margin-left: 0; }
+  .arcada .diente:nth-child(9) { grid-column-start: auto; }
   .diente span { height: 42px; }
 }
 .leyenda { display: flex; justify-content: center; flex-wrap: wrap; gap: 4px 14px; margin-top: 10px; }

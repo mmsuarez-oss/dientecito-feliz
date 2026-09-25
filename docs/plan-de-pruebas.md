@@ -25,7 +25,7 @@ Se aprueba la versión si los **31 casos automáticos** terminan en OK y las pru
 ### Migración
 | Código | Caso | Pasos / datos | Resultado esperado |
 |---|---|---|---|
-| CP-01 | Actualizar una base de la primera versión | Base con el esquema original, un paciente y un diente marcado | Se agregan tablas y columnas nuevas. El paciente y el diente se conservan. Se crean 3 usuarios y 3 salas de ejemplo |
+| CP-01 | Actualizar una base de versiones anteriores | Base con el esquema original, un paciente, un diente marcado y un registro con foto por diente | Se agregan tablas y columnas nuevas. El paciente y el diente se conservan. Se crean 3 usuarios y 3 salas de ejemplo. El registro antiguo se convierte en una sesión con su foto y su estado de revisión |
 
 ### Acceso y permisos
 | Código | Caso | Pasos / datos | Resultado esperado |
@@ -44,14 +44,14 @@ Se aprueba la versión si los **31 casos automáticos** terminan en OK y las pru
 | CP-09 | Consentimiento | Guardar sin firma; luego con firma | Primero pide la firma; luego muestra "Firmado el…" |
 | CP-10 | Aprobación docente | El estudiante intenta aprobar; luego el profesor | El estudiante recibe 403. Con el profesor aparece "Aprobado por…" |
 
-### Odontograma con foto
+### Odontograma: primero la foto presencial, después el digital
 | Código | Caso | Pasos / datos | Resultado esperado |
 |---|---|---|---|
-| CP-11 | Foto obligatoria | Sin foto; con un archivo de texto; con el diente 99 | No se guarda en ningún caso y se muestra el mensaje correspondiente |
-| CP-12 | Registro válido | Diente 16, Caries y una foto JPG | Se registra en estado "Pendiente" y la foto se puede ver |
-| CP-13 | Privacidad de fotos | Abrir la foto como otra estudiante, como Servicios y como profesor | 404, 403 y 200, respectivamente |
-| CP-14 | Revisión del profesor | El estudiante intenta revisar; el profesor pide "Corregir" con una observación | El estudiante recibe 403. La observación aparece en el Inicio del estudiante y el contador del profesor baja a 0 |
-| CP-15 | Redirección segura | Revisar con `volver=//sitio-malicioso.com` | Se ignora y regresa al expediente |
+| CP-11 | Sin foto no hay odontograma digital | Abrir el expediente sin foto; marcar un diente sin sesión; subir sin archivo; subir un archivo de texto | El odontograma aparece bloqueado. Marcar da 404. Las subidas inválidas se rechazan y no se crea ninguna sesión |
+| CP-12 | Foto presencial y odontograma digital | Subir una foto JPG; marcar 16 Obturado, luego 16 Caries y 26 Obturado; marcar el diente 99; iniciar otra sesión | La foto se guarda y se habilita el odontograma. Queda un registro por diente (16 = Caries). El diente 99 da 400. No se permite una segunda sesión en curso |
+| CP-13 | Privacidad de fotos | Abrir la foto y la sesión como otra estudiante, como Servicios y como docente | 404, 403 y 200. La otra estudiante tampoco puede abrir la sesión |
+| CP-14 | Envío y revisión del docente | Enviar a revisión; intentar marcar; el docente abre la revisión; pide corrección sin observación y luego con observación; el estudiante corrige y reenvía; el docente aprueba | Tras enviar, marcar da 409. El docente ve la foto, el odontograma digital y "16: Caries". Sin observación se rechaza. Con observación, el estudiante la ve y el odontograma se desbloquea. Al final queda "Aprobado" |
+| CP-15 | Redirección segura | Revisar con `volver=//sitio-malicioso.com` | Se ignora y regresa a la pantalla de revisión |
 
 ### Citas
 | Código | Caso | Pasos / datos | Resultado esperado |
@@ -80,7 +80,7 @@ Se aprueba la versión si los **31 casos automáticos** terminan en OK y las pru
 | CP-25 | Sin borrado | El estudiante intenta borrar o archivar un paciente | No existe la opción de borrar, y archivar le da 403 |
 | CP-26 | Archivar | El profesor archiva sin motivo y luego con "Alta del tratamiento" | Primero pide el motivo. Luego el paciente sale de las listas y de la vista del estudiante, se ve en "Ver archivados" y conserva su odontograma |
 | CP-27 | Restaurar | El profesor presiona Restaurar | El paciente vuelve a las listas del estudiante |
-| CP-28 | Historial del expediente | Abrir el *Historial de cambios* | Muestra todas las acciones realizadas: registro, edición, firma, aprobación, odontograma, revisión, cita, pago, archivo y restauración |
+| CP-28 | Historial del expediente | Abrir el *Historial de cambios* | Muestra todas las acciones realizadas: registro, edición, firma, aprobación, foto presencial, dientes marcados, envío y revisión del odontograma, cita, pago, archivo y restauración |
 | CP-29 | Respaldo diario | Cualquier visita al sistema | Existe `respaldos/dientecito-<fecha de hoy>.db` |
 | CP-30 | Descargar respaldo | El profesor presiona *Descargar copia* | Un `.zip` con `dientecito.db` y las fotos. La base del `.zip` se abre y contiene los pacientes |
 
@@ -95,17 +95,18 @@ Se aprueba la versión si los **31 casos automáticos** terminan en OK y las pru
 |---|---|---|
 | PM-01 | Vista de computadora de los tres roles | Correcto |
 | PM-02 | Vista de teléfono (390 px): sin desplazamiento horizontal de la página; las tablas se deslizan dentro de su recuadro; odontograma en filas de 8 | Correcto |
-| PM-03 | Tocar un diente lo selecciona; sin diente, el formulario no se envía | Correcto |
+| PM-03 | Sin foto presencial, tocar un diente muestra el aviso "Primero suba la foto…". Con foto, tocar un diente lo guarda y le pone un marco | Correcto |
 | PM-04 | Una foto de 3000 × 2000 px se reduce a 1600 × 1067 antes de subirse | Correcto |
 | PM-05 | La firma se dibuja con el mouse o el dedo y *Borrar* limpia el recuadro | Correcto |
-| PM-06 | Sitio publicado: entrada de los tres roles, permisos y registro de odontograma con foto | Correcto |
+| PM-06 | Pantalla de revisión del docente: foto y odontograma digital lado a lado en computadora, uno debajo del otro en teléfono, sin desplazamiento horizontal | Correcto |
+| PM-07 | Sitio publicado: entrada de los tres roles, permisos y flujo de odontograma con foto presencial | Correcto |
 
 Pendiente: probar en teléfonos reales (Android y iPhone), en particular la cámara y las fotos HEIC del iPhone.
 
 ## 5. Pruebas de aceptación (pendientes, actividad 6.4)
 Con estudiantes y coordinación de la clínica:
-1. Un estudiante registra un paciente real de práctica, completa la historia clínica, toma la firma y registra dos prácticas con foto desde su teléfono.
-2. Un profesor revisa las fotos, pide una corrección y aprueba al paciente.
+1. Un estudiante registra un paciente real de práctica, completa la historia clínica, toma la firma, sube desde su teléfono la foto del odontograma presencial y llena el odontograma digital.
+2. Un docente compara la foto con el odontograma digital, pide una corrección, la aprueba cuando se corrige y aprueba al paciente.
 3. Se reporta una sala y Servicios la atiende.
 4. Se aplica la misma encuesta de satisfacción (escala 1–5) para compararla con la línea base de la encuesta de requerimientos: **2.9 de 5**.
 
@@ -114,3 +115,4 @@ Con estudiantes y coordinación de la clínica:
 | Fecha | Versión | Resultado |
 |---|---|---|
 | 2026-09-25 | Roles, odontograma con foto, avisos de salas, archivo, bitácora y respaldos | 31 de 31 casos automáticos correctos; PM-01 a PM-06 correctos |
+| 2026-09-25 | Odontograma por sesiones: primero la foto presencial, después el digital; revisión del docente lado a lado | 31 de 31 casos automáticos correctos; PM-01 a PM-07 correctos |

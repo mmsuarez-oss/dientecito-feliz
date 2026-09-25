@@ -1,5 +1,5 @@
 {% extends 'base.html' %}
-{% from '_macros.html' import tabla_citas, tabla_registros, form_firma with context %}
+{% from '_macros.html' import tabla_citas, tabla_sesiones, odontograma, form_firma with context %}
 {% block titulo %}{{ p.nombre }}{% endblock %}
 {% block contenido %}
 {% set profesor = g.usuario.rol == 'profesor' %}
@@ -63,46 +63,56 @@
   <a class="btn" href="{{ url_for('paciente_form', pid=p.id) }}">Completar historia clínica</a>
 </section>
 
-<section id="odontograma" class="seccion" data-odontograma>
-  <div class="odonto">
-    {% for titulo, arcada in [('Superior', SUPERIOR), ('Inferior', INFERIOR)] %}
-      <div class="arcada-titulo">{{ titulo }}</div>
-      <div class="arcada">
-        {% for d in arcada %}
-          {% set estado = dientes.get(d, 'Sano') %}
-          <button type="button" class="diente" data-diente="{{ d }}" data-estado="{{ estado }}"
-                  style="--color: {{ ESTADOS_DIENTE[estado] }}" title="Diente {{ d }}: {{ estado }}"><span></span>{{ d }}</button>
-        {% endfor %}
-      </div>
-    {% endfor %}
-    <div class="leyenda">
-      {% for nombre, color in ESTADOS_DIENTE.items() %}<span><i style="background: {{ color }}"></i>{{ nombre|replace('Extraido', 'Extraído') }}</span>{% endfor %}
-    </div>
-  </div>
-
-  <div class="columnas">
-    <form method="post" action="{{ url_for('registrar_odontograma', pid=p.id) }}" enctype="multipart/form-data" data-foto="#odontograma">
-      <fieldset>
-        <legend>Registrar práctica</legend>
-        <p class="tenue">Toque un diente en el odontograma, elija el estado y adjunte la foto de la práctica realizada.</p>
-        <label class="campo"><span>Diente:</span><input name="diente" required readonly placeholder="Toque un diente" data-diente-elegido></label>
-        <label class="campo"><span>Estado:</span>
-          <select name="estado" required>
+<section id="odontograma" class="seccion">
+  {% if abierta %}
+    {% if abierta.estado == 'Corregir' %}
+      <div class="mensaje error">El docente pidió corregir este odontograma: {{ abierta.observacion }}</div>
+    {% endif %}
+    <ol class="pasos">
+      <li class="hecho">
+        <b>Foto del odontograma presencial</b>: subida el {{ abierta.fecha }} por {{ abierta.autor }}.
+        <a href="{{ url_for('foto', nombre=abierta.foto) }}" target="_blank">Ver foto</a>
+        <details><summary>Cambiar foto</summary>
+          <form method="post" action="{{ url_for('sesion_foto', sid=abierta.id) }}" enctype="multipart/form-data" data-foto="#odontograma" class="en-linea">
+            <input type="file" name="foto" accept="image/*" required aria-label="Nueva foto">
+            <span class="acciones"><button class="btn chico">Reemplazar</button></span>
+          </form>
+        </details>
+      </li>
+      <li>
+        <b>Odontograma digital</b>: elija el estado y toque los dientes tal como están en la foto. Se guarda al instante.
+        <div class="en-linea" style="margin-top: 6px">
+          <label for="estado-diente">Estado:</label>
+          <select id="estado-diente" data-estado-diente style="max-width: 200px">
             {% for nombre in ESTADOS_DIENTE %}<option value="{{ nombre }}" {{ 'selected' if nombre == 'Caries' }}>{{ nombre|replace('Extraido', 'Extraído') }}</option>{% endfor %}
           </select>
-        </label>
-        <label class="campo arriba"><span>Descripción:</span><textarea name="descripcion" rows="2" placeholder="Procedimiento realizado"></textarea></label>
+        </div>
+      </li>
+    </ol>
+    {{ odontograma(dientes, url=url_for('sesion_diente', sid=abierta.id), resaltados=marcados) }}
+    <form method="post" action="{{ url_for('sesion_enviar', sid=abierta.id) }}" class="acciones"
+          data-confirmar="¿Enviar el odontograma al docente? No podrá modificarlo mientras lo revisa.">
+      <span class="tenue" style="margin-right: auto">3. Cuando termine, envíelo al docente.</span>
+      <button class="btn">Enviar a revisión del docente</button>
+    </form>
+  {% else %}
+    <form method="post" action="{{ url_for('sesion_nueva', pid=p.id) }}" enctype="multipart/form-data" data-foto="#odontograma">
+      <fieldset>
+        <legend>1. Foto del odontograma presencial</legend>
+        <p>Para llenar el odontograma digital, primero suba la foto del odontograma que se hizo en la práctica presencial.</p>
         <label class="campo arriba"><span>Foto: *</span>
           <span><input type="file" name="foto" accept="image/*" required data-vista-previa><img class="vista-previa" hidden alt="Vista previa"></span>
         </label>
-        <div class="acciones"><button class="btn">Guardar registro</button></div>
+        <label class="campo"><span>Nota:</span><input name="nota" placeholder="Opcional: tipo de práctica u observaciones"></label>
+        <div class="acciones"><button class="btn">Subir foto y continuar</button></div>
       </fieldset>
     </form>
-    <div>
-      <h2>Historial del odontograma</h2>
-      {{ tabla_registros(registros, revisar=profesor, vacio='Aún no hay prácticas registradas.') }}
-    </div>
-  </div>
+    <p class="tenue">Odontograma actual del paciente. Se habilita al subir la foto.</p>
+    {{ odontograma(dientes, bloqueado=true) }}
+  {% endif %}
+
+  <h2>Historial de odontogramas</h2>
+  {{ tabla_sesiones(sesiones, revisar=profesor, vacio='Aún no se ha registrado ningún odontograma.') }}
 </section>
 
 <section id="tratamientos" class="seccion">

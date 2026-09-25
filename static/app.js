@@ -41,24 +41,34 @@ if (pestanas) {
   mostrar(location.hash.slice(1));
 }
 
-// Odontograma: tocar un diente lo elige para el registro
-const odonto = $('[data-odontograma]');
+// Odontograma digital: solo se llena despues de subir la foto del odontograma presencial
+const odonto = $('[data-odontograma][data-url]');
 if (odonto) {
-  const campo = $('[data-diente-elegido]', odonto);
-  $$('.diente', odonto).forEach(d => d.addEventListener('click', () => {
-    $$('.diente', odonto).forEach(x => x.classList.remove('elegido'));
-    d.classList.add('elegido');
-    campo.value = d.dataset.diente;
-    campo.form.elements.estado.focus({ preventScroll: true });
-  }));
-  campo.form.addEventListener('submit', e => {  // un campo de solo lectura no se valida solo
-    if (!campo.value) {
-      e.preventDefault();
-      e.stopImmediatePropagation();
-      alert('Primero toque en el odontograma el diente que trabajó.');
+  const estadoElegido = $('[data-estado-diente]');
+  const colores = Object.fromEntries($$('.leyenda span', odonto).filter(s => s.textContent.trim())
+    .map(s => [s.textContent.trim().replace('Extraído', 'Extraido'), $('i', s).style.background]));
+  $$('.diente', odonto).forEach(d => d.addEventListener('click', async () => {
+    const estado = estadoElegido.value;
+    const antes = { estado: d.dataset.estado, color: d.style.getPropertyValue('--color'), resaltado: d.classList.contains('resaltado') };
+    d.dataset.estado = estado;
+    d.style.setProperty('--color', colores[estado]);
+    d.classList.add('resaltado');
+    d.title = `Diente ${d.dataset.diente}: ${estado}`;
+    const r = await fetch(odonto.dataset.url, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ diente: +d.dataset.diente, estado }),
+    }).catch(() => null);
+    if (!r || !r.ok) {  // deshacer si no se guardo
+      d.dataset.estado = antes.estado;
+      d.style.setProperty('--color', antes.color);
+      d.classList.toggle('resaltado', antes.resaltado);
+      const datos = r ? await r.json().catch(() => ({})) : {};
+      alert(datos.error || 'No se pudo guardar. Revise la conexión.');
     }
-  });
+  }));
 }
+$$('[data-odontograma][data-bloqueado]').forEach(o => $$('.diente', o).forEach(d => d.addEventListener('click', () =>
+  alert('Primero suba la foto del odontograma presencial. Después podrá llenar el odontograma digital.'))));
 
 // Vista previa de la foto elegida
 $$('input[data-vista-previa]').forEach(input => input.addEventListener('change', () => {
@@ -75,6 +85,7 @@ $$('form[data-foto]').forEach(form => form.addEventListener('submit', async e =>
   if (!archivo || !form.checkValidity()) return;
   e.preventDefault();
   const boton = $('.acciones .btn', form);
+  const textoBoton = boton.textContent;
   boton.disabled = true;
   boton.textContent = 'Subiendo foto…';
   const datos = new FormData(form);
@@ -94,7 +105,7 @@ $$('form[data-foto]').forEach(form => form.addEventListener('submit', async e =>
     location.reload();
   } catch {
     boton.disabled = false;
-    boton.textContent = 'Guardar registro';
+    boton.textContent = textoBoton;
     alert('No se pudo subir la foto. Revise la conexión e intente de nuevo.');
   }
 }));

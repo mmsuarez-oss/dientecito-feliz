@@ -60,40 +60,52 @@
 </div>
 {% endmacro %}
 
-{# Tabla de registros del odontograma con foto #}
-{% macro tabla_registros(registros, con_paciente=false, revisar=false, vacio='No hay registros.') %}
+{# Odontograma: editable (url) solo con una sesion abierta que ya tiene su foto presencial;
+   bloqueado = aun no hay foto; resaltados = dientes marcados en la sesion #}
+{% macro odontograma(dientes, url=none, resaltados=(), bloqueado=false) %}
+<div class="odonto" data-odontograma {% if url %}data-url="{{ url }}"{% elif bloqueado %}data-bloqueado{% endif %}>
+  {% for titulo, arcada in [('Superior', SUPERIOR), ('Inferior', INFERIOR)] %}
+    <div class="arcada-titulo">{{ titulo }}</div>
+    <div class="arcada">
+      {% for d in arcada %}
+        {% set estado = dientes.get(d, 'Sano') %}
+        <button type="button" class="diente {{ 'resaltado' if d in resaltados }}" data-diente="{{ d }}" data-estado="{{ estado }}"
+                style="--color: {{ ESTADOS_DIENTE[estado] }}" title="Diente {{ d }}: {{ estado }}"><span></span>{{ d }}</button>
+      {% endfor %}
+    </div>
+  {% endfor %}
+  <div class="leyenda">
+    {% for nombre, color in ESTADOS_DIENTE.items() %}<span><i style="background: {{ color }}"></i>{{ nombre|replace('Extraido', 'Extraído') }}</span>{% endfor %}
+    {% if url or resaltados %}<span><i class="marco"></i>Marcado en esta sesión</span>{% endif %}
+  </div>
+</div>
+{% endmacro %}
+
+{# Tabla de sesiones de odontograma: foto presencial + cambios en el digital #}
+{% macro tabla_sesiones(sesiones, con_paciente=false, revisar=false, vacio='No hay odontogramas.') %}
 <div class="tabla">
   <table>
     <thead><tr>
-      <th>Foto</th><th>Fecha</th>{% if con_paciente %}<th>Paciente</th>{% endif %}<th>Diente</th><th>Estado</th>
-      <th>Descripción</th><th>Registró</th><th>Revisión</th>
+      <th>Foto presencial</th><th>Fecha</th>{% if con_paciente %}<th>Paciente</th>{% endif %}<th>Registró</th>
+      <th>Odontograma digital</th><th>Estado</th><th></th>
     </tr></thead>
     <tbody>
-    {% for r in registros %}
+    {% for s in sesiones %}
       <tr>
-        <td><a href="{{ url_for('foto', nombre=r.foto) }}" target="_blank"><img class="miniatura" src="{{ url_for('foto', nombre=r.foto) }}" alt="Foto del diente {{ r.diente }}" loading="lazy"></a></td>
-        <td class="fecha">{{ r.fecha }}</td>
-        {% if con_paciente %}<td><a href="{{ url_for('expediente', pid=r.paciente_id, _anchor='odontograma') }}">{{ r.paciente }}</a></td>{% endif %}
-        <td>{{ r.diente }}</td>
-        <td>{{ r.estado|replace('Extraido', 'Extraído') }}</td>
-        <td>{{ r.descripcion or '' }}</td>
-        <td>{{ r.autor or '' }}</td>
+        <td><a href="{{ url_for('foto', nombre=s.foto) }}" target="_blank"><img class="miniatura" src="{{ url_for('foto', nombre=s.foto) }}" alt="Foto del odontograma presencial" loading="lazy"></a></td>
+        <td class="fecha">{{ s.fecha }}</td>
+        {% if con_paciente %}<td><a href="{{ url_for('expediente', pid=s.paciente_id, _anchor='odontograma') }}">{{ s.paciente }}</a></td>{% endif %}
+        <td>{{ s.autor or '' }}</td>
+        <td>{{ (s.cambios or 'Sin dientes marcados')|replace('Extraido', 'Extraído') }}{% if s.nota %}<div class="tenue">{{ s.nota }}</div>{% endif %}</td>
         <td>
-          <span class="{{ {'Aprobado': 'verde', 'Corregir': 'rojo'}.get(r.revision, 'amarillo') }}">{{ r.revision }}</span>
-          {% if r.observacion %}<div class="tenue">{{ r.observacion }}</div>{% endif %}
-          {% if r.revisor %}<div class="tenue">{{ r.revisor }}</div>{% endif %}
-          {% if revisar %}
-          <form method="post" action="{{ url_for('revisar_registro', rid=r.id) }}" class="en-linea" style="margin-top: 4px">
-            <input type="hidden" name="volver" value="{{ request.full_path }}">
-            <input name="observacion" placeholder="Observación (opcional)" value="{{ r.observacion or '' }}">
-            <button class="btn chico" name="revision" value="Aprobado">Aprobar</button>
-            <button class="btn chico peligro" name="revision" value="Corregir">Corregir</button>
-          </form>
-          {% endif %}
+          <span class="{{ {'Aprobado': 'verde', 'Corregir': 'rojo', 'Pendiente': 'amarillo'}.get(s.estado, 'tenue') }}">{{ ESTADO_SESION[s.estado] }}</span>
+          {% if s.observacion %}<div class="tenue">{{ s.observacion }}</div>{% endif %}
+          {% if s.revisor %}<div class="tenue">{{ s.revisor }}</div>{% endif %}
         </td>
+        <td class="num"><a class="btn chico" href="{{ url_for('sesion_ver', sid=s.id) }}">{{ 'Revisar' if revisar and s.estado == 'Pendiente' else 'Ver' }}</a></td>
       </tr>
     {% else %}
-      <tr><td class="vacio" colspan="8">{{ vacio }}</td></tr>
+      <tr><td class="vacio" colspan="7">{{ vacio }}</td></tr>
     {% endfor %}
     </tbody>
   </table>
