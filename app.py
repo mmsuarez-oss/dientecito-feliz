@@ -8,21 +8,26 @@ Luego abrir la direccion que aparece en consola (el telefono debe estar en la mi
 import os
 import re
 import secrets
+import shutil
 import socket
 import sqlite3
+import tempfile
 import uuid
+import zipfile
 from datetime import date, datetime, timedelta, timezone
 from functools import wraps
 from pathlib import Path
 from urllib.parse import quote
 
 from flask import (Flask, abort, flash, g, redirect, render_template, request,
-                   send_from_directory, session, url_for)
+                   send_file, send_from_directory, session, url_for)
 from werkzeug.security import check_password_hash, generate_password_hash
 
 RAIZ = Path(__file__).parent
 DB = RAIZ / "dientecito.db"
 FOTOS = RAIZ / "fotos"
+RESPALDOS = RAIZ / "respaldos"  # copia diaria automatica de la base de datos
+DIAS_RESPALDO = 14
 CLAVE_INICIAL = os.environ.get("DIENTECITO_CLAVE", "uam2026")  # clave de las cuentas de ejemplo
 DEMO = bool(os.environ.get("DIENTECITO_DEMO"))  # servidor publico de prueba: muestra aviso de datos ficticios
 NICARAGUA = timezone(timedelta(hours=-6))  # el servidor puede estar en UTC
@@ -31,7 +36,7 @@ ROLES = {"estudiante": "Estudiante", "profesor": "Profesor", "servicios": "Servi
 MENUS = {
     "estudiante": [("inicio", "Inicio"), ("pacientes", "Mis pacientes"), ("citas", "Citas"), ("salas", "Salas")],
     "profesor": [("inicio", "Inicio"), ("pacientes", "Pacientes"), ("citas", "Citas"), ("salas", "Salas"),
-                 ("tarifario", "Tarifario"), ("usuarios", "Usuarios")],
+                 ("tarifario", "Tarifario"), ("usuarios", "Usuarios"), ("bitacora", "Bitácora")],
     "servicios": [("avisos", "Avisos"), ("salas", "Salas"), ("inventario", "Inventario")],
 }
 ESTADOS_DIENTE = {"Sano": "#ffffff", "Caries": "#c0504d", "Obturado": "#4f81bd",
@@ -81,18 +86,23 @@ CREATE TABLE IF NOT EXISTS reportes(
     tipo TEXT NOT NULL, descripcion TEXT, estado TEXT DEFAULT 'Pendiente',
     reportado_por INTEGER REFERENCES usuarios(id), fecha TEXT NOT NULL,
     atendido_por INTEGER REFERENCES usuarios(id), actualizado TEXT);
+CREATE TABLE IF NOT EXISTS bitacora(
+    id INTEGER PRIMARY KEY, fecha TEXT NOT NULL, usuario_id INTEGER, accion TEXT NOT NULL,
+    detalle TEXT, paciente_id INTEGER);
+CREATE INDEX IF NOT EXISTS bitacora_paciente ON bitacora(paciente_id);
 """
 # Columnas agregadas despues de las primeras versiones; se anaden a bases ya existentes
 COLUMNAS_NUEVAS = {
     "pacientes": ["sexo TEXT", "direccion TEXT", "contacto_emergencia TEXT", "motivo_consulta TEXT",
                   "antecedentes TEXT", "medicamentos TEXT", "examen_clinico TEXT", "plan TEXT",
                   "docente TEXT", "aprobado INTEGER DEFAULT 0", "firma TEXT", "firma_fecha TEXT",
-                  "estudiante_id INTEGER REFERENCES usuarios(id)"],
+                  "estudiante_id INTEGER REFERENCES usuarios(id)", "archivado INTEGER DEFAULT 0"],
     "citas": ["estado TEXT DEFAULT 'Pendiente'", "sala_id INTEGER REFERENCES salas(id)"],
 }
 CAMPOS_PACIENTE = ["nombre", "cedula", "telefono", "nacimiento", "sexo", "direccion",
                    "contacto_emergencia", "alergias", "motivo_consulta", "antecedentes",
                    "medicamentos", "examen_clinico", "plan"]
+ACTIVOS = " AND COALESCE(p.archivado, 0) = 0"  # los pacientes archivados no aparecen en las listas
 CITAS_SQL = """SELECT c.*, p.nombre, p.telefono, p.estudiante_id, u.nombre AS estudiante_nombre, s.nombre AS sala
                FROM citas c JOIN pacientes p ON p.id = c.paciente_id
                LEFT JOIN usuarios u ON u.id = p.estudiante_id LEFT JOIN salas s ON s.id = c.sala_id WHERE 1 = 1"""
@@ -100,6 +110,8 @@ REGISTROS_SQL = """SELECT r.*, p.nombre AS paciente, u.nombre AS autor, v.nombre
                    FROM odonto_registros r JOIN pacientes p ON p.id = r.paciente_id
                    LEFT JOIN usuarios u ON u.id = r.usuario_id LEFT JOIN usuarios v ON v.id = r.revisado_por
                    WHERE 1 = 1"""
+BITACORA_SQL = """SELECT b.*, u.nombre AS usuario, p.nombre AS paciente FROM bitacora b
+                  LEFT JOIN usuarios u ON u.id = b.usuario_id LEFT JOIN pacientes p ON p.id = b.paciente_id"""
 REPORTES_SQL = """SELECT r.*, s.nombre AS sala, u.nombre AS reporta, a.nombre AS atiende
                   FROM reportes r JOIN salas s ON s.id = r.sala_id
                   LEFT JOIN usuarios u ON u.id = r.reportado_por LEFT JOIN usuarios a ON a.id = r.atendido_por"""
@@ -183,6 +195,35 @@ def regresar(defecto):
     return redirect(destino if destino.startswith("/") and not destino.startswith("//") else defecto)
 
 
+def anotar(accion, detalle="", paciente_id=None, usuario_id=None):
+    """Deja constancia en la bitacora de quien hizo que y cuando."""
+    if usuario_id is None and g.get("usuario"):
+        usuario_id = g.usuario["id"]
+    ejecutar("INSERT INTO bitacora(fecha, usuario_id, accion, detalle, paciente_id) VALUES (?, ?, ?, ?, ?)",
+             (ahora().strftime("%Y-%m-%d %H:%M:%S"), usuario_id, accion, detalle, paciente_id))
+
+
+def copiar_db(destino):
+    """Copia consistente de la base de datos aunque este en uso (API de respaldo de SQLite)."""
+    origen, copia = sqlite3.connect(DB), sqlite3.connect(destino)
+    with copia:
+        origen.backup(copia)
+    copia.close()
+    origen.close()
+
+
+def respaldo_diario():
+    destino = RESPALDOS / f"dientecito-{hoy().isoformat()}.db"
+    if destino.exists():
+        return
+    RESPALDOS.mkdir(exist_ok=True)
+    temporal = destino.with_suffix(".tmp")
+    copiar_db(temporal)
+    temporal.replace(destino)
+    for viejo in sorted(RESPALDOS.glob("dientecito-*.db"))[:-DIAS_RESPALDO]:
+        viejo.unlink()
+
+
 def guardar_foto(archivo):
     """Guarda la foto si es una imagen real (JPG, PNG, WEBP o HEIC) y devuelve su nombre."""
     if not archivo or not archivo.filename:
@@ -227,7 +268,8 @@ def alcance(alias="p"):
 
 
 def paciente_o_404(pid):
-    return q("SELECT p.* FROM pacientes p WHERE p.id = ?" + alcance(), (pid,), uno=True) or abort(404)
+    extra = ACTIVOS if es("estudiante") else ""  # el profesor puede abrir archivados para restaurarlos
+    return q("SELECT p.* FROM pacientes p WHERE p.id = ?" + alcance() + extra, (pid,), uno=True) or abort(404)
 
 
 def estudiantes():
@@ -242,6 +284,7 @@ def salas_con_estado():
 
 @app.before_request
 def cargar_usuario():
+    respaldo_diario()
     g.usuario = None
     if uid := session.get("uid"):
         g.usuario = q("SELECT * FROM usuarios WHERE id = ? AND activo = 1", (uid,), uno=True)
@@ -257,11 +300,12 @@ def menu_y_avisos():
     if es("servicios"):
         contadores["avisos"] = q("SELECT COUNT(*) FROM reportes WHERE estado != 'Resuelto'", uno=True)[0]
     elif es("profesor"):
-        contadores["inicio"] = q("SELECT (SELECT COUNT(*) FROM odonto_registros WHERE revision = 'Pendiente') + "
-                                 "(SELECT COUNT(*) FROM pacientes WHERE COALESCE(aprobado, 0) = 0)", uno=True)[0]
+        contadores["inicio"] = q("SELECT (SELECT COUNT(*) FROM odonto_registros r JOIN pacientes p ON p.id = r.paciente_id "
+                                 "WHERE r.revision = 'Pendiente'" + ACTIVOS + ") + (SELECT COUNT(*) FROM pacientes p "
+                                 "WHERE COALESCE(p.aprobado, 0) = 0" + ACTIVOS + ")", uno=True)[0]
     else:
         contadores["inicio"] = q("SELECT COUNT(*) FROM odonto_registros r JOIN pacientes p ON p.id = r.paciente_id "
-                                 "WHERE r.revision = 'Corregir'" + alcance(), uno=True)[0]
+                                 "WHERE r.revision = 'Corregir'" + alcance() + ACTIVOS, uno=True)[0]
     return {"menu": MENUS[g.usuario["rol"]], "contadores": contadores}
 
 
@@ -337,7 +381,9 @@ def entrar():
             session.clear()
             session.permanent = True
             session["uid"] = u["id"]
+            anotar("Inicio de sesión", usuario_id=u["id"])
             return redirect(url_for("inicio"))
+        anotar("Intento de acceso fallido", f"Usuario: {request.form.get('usuario', '')[:40]}")
         flash("Usuario o clave incorrectos.", "error")
     return render_template("entrar.html")
 
@@ -360,6 +406,7 @@ def cuenta():
             flash("Las claves nuevas no coinciden.", "error")
         else:
             ejecutar("UPDATE usuarios SET clave = ? WHERE id = ?", (generate_password_hash(f["nueva"]), g.usuario["id"]))
+            anotar("Cambió su clave")
             flash("Clave actualizada.", "ok")
         return redirect(url_for("cuenta"))
     return render_template("cuenta.html")
@@ -372,16 +419,16 @@ def inicio():
         return redirect(url_for("avisos"))
     d = hoy().isoformat()
     datos = {"hoy": d, "salas": salas_con_estado(),
-             "citas_hoy": q(CITAS_SQL + alcance() + " AND c.fecha = ? ORDER BY c.hora", (d,))}
+             "citas_hoy": q(CITAS_SQL + alcance() + ACTIVOS + " AND c.fecha = ? ORDER BY c.hora", (d,))}
     if es("estudiante"):
-        datos["por_recordar"] = q(CITAS_SQL + alcance() + " AND c.fecha > ? AND c.fecha <= ? AND c.estado = 'Pendiente'"
+        datos["por_recordar"] = q(CITAS_SQL + alcance() + ACTIVOS + " AND c.fecha > ? AND c.fecha <= ? AND c.estado = 'Pendiente'"
                                   " ORDER BY c.fecha, c.hora", (d, (hoy() + timedelta(3)).isoformat()))
-        datos["registros"] = q(REGISTROS_SQL + alcance() + " AND r.revision != 'Aprobado' ORDER BY r.fecha DESC")
+        datos["registros"] = q(REGISTROS_SQL + alcance() + ACTIVOS + " AND r.revision != 'Aprobado' ORDER BY r.fecha DESC")
     else:
         datos["por_aprobar"] = q("SELECT p.*, u.nombre AS estudiante_nombre FROM pacientes p "
                                  "LEFT JOIN usuarios u ON u.id = p.estudiante_id "
-                                 "WHERE COALESCE(p.aprobado, 0) = 0 ORDER BY p.nombre")
-        datos["registros"] = q(REGISTROS_SQL + " AND r.revision = 'Pendiente' ORDER BY r.fecha")
+                                 "WHERE COALESCE(p.aprobado, 0) = 0" + ACTIVOS + " ORDER BY p.nombre")
+        datos["registros"] = q(REGISTROS_SQL + ACTIVOS + " AND r.revision = 'Pendiente' ORDER BY r.fecha")
     return render_template(f"inicio_{g.usuario['rol']}.html", **datos)
 
 
@@ -391,14 +438,16 @@ def inicio():
 def pacientes():
     texto = request.args.get("q", "").strip()
     est = request.args.get("estudiante", type=int)
+    archivados = es("profesor") and request.args.get("archivados") == "1"
     patron = f"%{texto}%"
     sql = ("SELECT p.*, u.nombre AS estudiante_nombre FROM pacientes p LEFT JOIN usuarios u ON u.id = p.estudiante_id "
-           "WHERE (p.nombre LIKE ? OR p.cedula LIKE ? OR p.telefono LIKE ?)" + alcance())
-    args = [patron, patron, patron]
+           "WHERE (p.nombre LIKE ? OR p.cedula LIKE ? OR p.telefono LIKE ?)" + alcance() +
+           " AND COALESCE(p.archivado, 0) = ?")
+    args = [patron, patron, patron, int(archivados)]
     if est and es("profesor"):
         sql += " AND p.estudiante_id = ?"
         args.append(est)
-    return render_template("pacientes.html", texto=texto, est=est, estudiantes=estudiantes(),
+    return render_template("pacientes.html", texto=texto, est=est, estudiantes=estudiantes(), archivados=archivados,
                            pacientes=q(sql + " ORDER BY p.nombre", args))
 
 
@@ -408,6 +457,7 @@ def pacientes():
 def paciente_form(pid=None):
     p = dict(paciente_o_404(pid)) if pid else {}
     if request.method == "POST":
+        antes = p
         p = {c: request.form.get(c, "").strip() for c in CAMPOS_PACIENTE}
         p["estudiante_id"] = request.form.get("estudiante_id", type=int) if es("profesor") else g.usuario["id"]
         if not p["nombre"] or not p["cedula"]:
@@ -417,10 +467,15 @@ def paciente_form(pid=None):
                 if pid:
                     ejecutar(f"UPDATE pacientes SET {', '.join(c + ' = ?' for c in p)} WHERE id = ?",
                              (*p.values(), pid))
+                    cambios = [f"{c}: «{(antes.get(c) or '')[:60]}» → «{(v or '')[:60]}»" if c in CAMPOS_PACIENTE
+                               else f"{c} cambiado" for c, v in p.items() if (antes.get(c) or "") != (v or "")]
+                    if cambios:
+                        anotar("Modificó datos del paciente", "; ".join(cambios), pid)
                     flash("Cambios guardados.", "ok")
                 else:
                     pid = ejecutar(f"INSERT INTO pacientes({', '.join(p)}) VALUES ({', '.join('?' * len(p))})",
                                    tuple(p.values()))
+                    anotar("Registró paciente", f"{p['nombre']} ({p['cedula']})", pid)
                     flash("Paciente registrado.", "ok")
                 return redirect(url_for("expediente", pid=pid))
             except sqlite3.IntegrityError:
@@ -439,15 +494,29 @@ def expediente(pid):
         registros=q(REGISTROS_SQL + " AND r.paciente_id = ? ORDER BY r.fecha DESC, r.id DESC", (pid,)),
         citas=q(CITAS_SQL + " AND c.paciente_id = ? ORDER BY c.fecha DESC, c.hora DESC", (pid,)),
         tratamientos=q("SELECT * FROM tratamientos WHERE paciente_id = ? ORDER BY id DESC", (pid,)),
-        tarifario=q("SELECT * FROM tarifario ORDER BY procedimiento"))
+        tarifario=q("SELECT * FROM tarifario ORDER BY procedimiento"),
+        historial=q(BITACORA_SQL + " WHERE b.paciente_id = ? ORDER BY b.id DESC", (pid,)) if es("profesor") else [],
+        archivo=q(BITACORA_SQL + " WHERE b.paciente_id = ? AND b.accion = 'Archivó paciente' ORDER BY b.id DESC",
+                  (pid,), uno=True) if p["archivado"] else None)
 
 
-@app.post("/pacientes/<int:pid>/eliminar")
-@solo("estudiante", "profesor")
-def paciente_eliminar(pid):
-    paciente_o_404(pid)
-    ejecutar("DELETE FROM pacientes WHERE id = ?", (pid,))
-    flash("Paciente eliminado.", "ok")
+@app.post("/pacientes/<int:pid>/archivo")
+@solo("profesor")
+def paciente_archivar(pid):
+    """Los expedientes no se borran: se archivan (y se pueden restaurar)."""
+    p = paciente_o_404(pid)
+    if request.form.get("restaurar"):
+        ejecutar("UPDATE pacientes SET archivado = 0 WHERE id = ?", (pid,))
+        anotar("Restauró paciente", "", pid)
+        flash("Paciente restaurado.", "ok")
+        return redirect(url_for("expediente", pid=pid))
+    motivo = request.form.get("motivo", "").strip()
+    if not motivo:
+        flash("Indique el motivo para archivar al paciente.", "error")
+        return redirect(url_for("expediente", pid=pid))
+    ejecutar("UPDATE pacientes SET archivado = 1 WHERE id = ?", (pid,))
+    anotar("Archivó paciente", motivo, pid)
+    flash(f"{p['nombre']} fue archivado. Su expediente se conserva y puede restaurarse.", "ok")
     return redirect(url_for("pacientes"))
 
 
@@ -467,6 +536,7 @@ def registrar_odontograma(pid):
                  (pid, diente, estado, request.form.get("descripcion", "").strip(), foto,
                   ahora().strftime("%Y-%m-%d %H:%M"), g.usuario["id"]))
         ejecutar("INSERT OR REPLACE INTO odontograma VALUES (?, ?, ?)", (pid, diente, estado))
+        anotar("Registró práctica en odontograma", f"Diente {diente}: {estado}", pid)
         flash(f"Diente {diente} registrado como {estado}. Queda pendiente de revisión del profesor.", "ok")
     return volver(pid, "odontograma")
 
@@ -478,6 +548,8 @@ def revisar_registro(rid):
     if request.form.get("revision") in ("Aprobado", "Corregir"):
         ejecutar("UPDATE odonto_registros SET revision = ?, observacion = ?, revisado_por = ? WHERE id = ?",
                  (request.form["revision"], request.form.get("observacion", "").strip(), g.usuario["id"], rid))
+        anotar(f"Revisó odontograma: {request.form['revision']}",
+               f"Diente {r['diente']}. {request.form.get('observacion', '').strip()}".strip(), r["paciente_id"])
         flash("Revisión guardada.", "ok")
     return regresar(url_for("expediente", pid=r["paciente_id"], _anchor="odontograma"))
 
@@ -497,6 +569,7 @@ def firmar(pid):
     firma = request.form.get("firma", "")
     if firma.startswith("data:image/png;base64,"):
         ejecutar("UPDATE pacientes SET firma = ?, firma_fecha = ? WHERE id = ?", (firma, hoy().isoformat(), pid))
+        anotar("Registró firma del consentimiento", "", pid)
         flash("Consentimiento firmado y guardado.", "ok")
     else:
         flash("Falta la firma del paciente.", "error")
@@ -509,6 +582,7 @@ def aprobar(pid):
     aprobado = 1 if request.form.get("aprobado") == "1" else 0
     ejecutar("UPDATE pacientes SET aprobado = ?, docente = ? WHERE id = ?",
              (aprobado, g.usuario["nombre"] if aprobado else None, pid))
+    anotar("Aprobó paciente" if aprobado else "Retiró aprobación del paciente", "", pid)
     flash("Paciente aprobado." if aprobado else "Aprobación retirada.", "ok")
     return regresar(url_for("expediente", pid=pid))
 
@@ -523,6 +597,7 @@ def tratamiento_nuevo(pid):
         ejecutar("INSERT INTO tratamientos(paciente_id, procedimiento, diente, costo, fecha) VALUES (?, ?, ?, ?, ?)",
                  (pid, f["procedimiento"].strip(), f.get("diente", "").strip(), numero(f.get("costo")),
                   hoy().isoformat()))
+        anotar("Agregó tratamiento", f"{f['procedimiento'].strip()} ({dinero(numero(f.get('costo')))})", pid)
         flash("Tratamiento agregado.", "ok")
     return volver(pid, "tratamientos")
 
@@ -534,12 +609,20 @@ def tratamiento_actualizar(tid):
     paciente_o_404(t["paciente_id"])
     f = request.form
     if f.get("eliminar"):
-        ejecutar("DELETE FROM tratamientos WHERE id = ?", (tid,))
+        if t["pagado"] > 0 and not es("profesor"):
+            flash("Este tratamiento tiene pagos registrados; solo un profesor puede eliminarlo.", "error")
+        else:
+            ejecutar("DELETE FROM tratamientos WHERE id = ?", (tid,))
+            anotar("Eliminó tratamiento", f"{t['procedimiento']} (costo {dinero(t['costo'])}, pagado {dinero(t['pagado'])})",
+                   t["paciente_id"])
     elif f.get("abono"):
-        ejecutar("UPDATE tratamientos SET pagado = MIN(costo, pagado + ?) WHERE id = ?", (numero(f["abono"]), tid))
+        monto = min(numero(f["abono"]), t["costo"] - t["pagado"])
+        ejecutar("UPDATE tratamientos SET pagado = pagado + ? WHERE id = ?", (monto, tid))
+        anotar("Registró pago", f"{t['procedimiento']}: {dinero(monto)}", t["paciente_id"])
         flash("Pago registrado.", "ok")
     elif f.get("estado") in ("Pendiente", "Realizado"):
         ejecutar("UPDATE tratamientos SET estado = ? WHERE id = ?", (f["estado"], tid))
+        anotar(f"Marcó tratamiento como {f['estado'].lower()}", t["procedimiento"], t["paciente_id"])
     return volver(t["paciente_id"], "tratamientos")
 
 
@@ -550,6 +633,7 @@ def tarifario():
         ejecutar("INSERT INTO tarifario(procedimiento, precio) VALUES (?, ?) "
                  "ON CONFLICT(procedimiento) DO UPDATE SET precio = excluded.precio",
                  (request.form["procedimiento"].strip(), numero(request.form.get("precio"))))
+        anotar("Actualizó tarifario", f"{request.form['procedimiento'].strip()}: {dinero(numero(request.form.get('precio')))}")
         flash("Tarifario actualizado.", "ok")
         return redirect(url_for("tarifario"))
     return render_template("tarifario.html", tarifario=q("SELECT * FROM tarifario ORDER BY procedimiento"))
@@ -558,7 +642,9 @@ def tarifario():
 @app.post("/tarifario/<int:tid>/eliminar")
 @solo("profesor")
 def tarifario_eliminar(tid):
+    t = q("SELECT * FROM tarifario WHERE id = ?", (tid,), uno=True) or abort(404)
     ejecutar("DELETE FROM tarifario WHERE id = ?", (tid,))
+    anotar("Quitó del tarifario", t["procedimiento"])
     return redirect(url_for("tarifario"))
 
 
@@ -568,7 +654,7 @@ def tarifario_eliminar(tid):
 def citas():
     if request.method == "POST":
         f = {k: request.form.get(k, "").strip() for k in ("paciente_id", "fecha", "hora", "sala_id", "motivo")}
-        p = q("SELECT p.* FROM pacientes p WHERE p.id = ?" + alcance(), (f["paciente_id"],), uno=True)
+        p = q("SELECT p.* FROM pacientes p WHERE p.id = ?" + alcance() + ACTIVOS, (f["paciente_id"],), uno=True)
         activas = " AND c.estado NOT IN ('Cancelada', 'No asistió')"
         if not (p and f["fecha"] and f["hora"]):
             flash("Elige paciente, fecha y hora.", "error")
@@ -587,6 +673,7 @@ def citas():
         else:
             ejecutar("INSERT INTO citas(paciente_id, fecha, hora, motivo, sala_id) VALUES (?, ?, ?, ?, ?)",
                      (p["id"], f["fecha"], f["hora"], f["motivo"], f["sala_id"] or None))
+            anotar("Agendó cita", f"{f['fecha']} {f['hora']} {f['motivo']}".strip(), p["id"])
             flash("Cita agendada.", "ok")
             if f["sala_id"] and (s := q("SELECT GROUP_CONCAT(DISTINCT tipo) FROM reportes WHERE sala_id = ? "
                                         "AND estado != 'Resuelto'", (f["sala_id"],), uno=True)[0]):
@@ -596,10 +683,10 @@ def citas():
 
     ver = request.args.get("ver", "proximas")
     d = hoy().isoformat()
-    filas = q(CITAS_SQL + alcance() + (" AND c.fecha >= ? ORDER BY c.fecha, c.hora" if ver == "proximas"
+    filas = q(CITAS_SQL + alcance() + ACTIVOS + (" AND c.fecha >= ? ORDER BY c.fecha, c.hora" if ver == "proximas"
                                        else " AND c.fecha < ? ORDER BY c.fecha DESC, c.hora DESC"), (d,))
     return render_template("citas.html", citas=filas, ver=ver, hoy=d, salas=salas_con_estado(),
-                           pacientes=q("SELECT p.id, p.nombre, p.cedula FROM pacientes p WHERE 1 = 1" + alcance() +
+                           pacientes=q("SELECT p.id, p.nombre, p.cedula FROM pacientes p WHERE 1 = 1" + alcance() + ACTIVOS +
                                        " ORDER BY p.nombre"),
                            elegido=request.args.get("paciente", type=int))
 
@@ -607,10 +694,11 @@ def citas():
 @app.post("/citas/<int:cid>/estado")
 @solo("estudiante", "profesor")
 def cita_estado(cid):
-    q("SELECT c.id FROM citas c JOIN pacientes p ON p.id = c.paciente_id WHERE c.id = ?" + alcance(),
-      (cid,), uno=True) or abort(404)
+    c = q("SELECT c.* FROM citas c JOIN pacientes p ON p.id = c.paciente_id WHERE c.id = ?" + alcance(),
+          (cid,), uno=True) or abort(404)
     if request.form.get("estado") in ESTADOS_CITA:
         ejecutar("UPDATE citas SET estado = ? WHERE id = ?", (request.form["estado"], cid))
+        anotar(f"Cambió cita a «{request.form['estado']}»", f"{c['fecha']} {c['hora']}", c["paciente_id"])
     return regresar(url_for("citas"))
 
 
@@ -623,6 +711,8 @@ def salas():
             ejecutar("INSERT INTO reportes(sala_id, tipo, descripcion, reportado_por, fecha) VALUES (?, ?, ?, ?, ?)",
                      (f["sala_id"], f["tipo"], f.get("descripcion", "").strip(), g.usuario["id"],
                       ahora().strftime("%Y-%m-%d %H:%M")))
+            sala = q("SELECT nombre FROM salas WHERE id = ?", (f["sala_id"],), uno=True)["nombre"]
+            anotar("Reportó sala", f"{sala}: {f['tipo']}. {f.get('descripcion', '').strip()}".strip())
             flash("Reporte enviado. Servicios ya recibió el aviso.", "ok")
         else:
             flash("Elige la sala y el tipo de problema.", "error")
@@ -638,6 +728,7 @@ def sala_nueva():
     if nombre:
         try:
             ejecutar("INSERT INTO salas(nombre) VALUES (?)", (nombre,))
+            anotar("Agregó sala", nombre)
             flash("Sala agregada.", "ok")
         except sqlite3.IntegrityError:
             flash("Ya existe una sala con ese nombre.", "error")
@@ -647,6 +738,8 @@ def sala_nueva():
 @app.post("/salas/<int:sid>/eliminar")
 @solo("servicios", "profesor")
 def sala_eliminar(sid):
+    s = q("SELECT * FROM salas WHERE id = ?", (sid,), uno=True) or abort(404)
+    anotar("Eliminó sala", s["nombre"])
     ejecutar("UPDATE citas SET sala_id = NULL WHERE sala_id = ?", (sid,))
     ejecutar("DELETE FROM salas WHERE id = ?", (sid,))
     flash("Sala eliminada.", "ok")
@@ -668,6 +761,8 @@ def reporte_estado(rid):
     if request.form.get("estado") in ("En proceso", "Resuelto"):
         ejecutar("UPDATE reportes SET estado = ?, atendido_por = ?, actualizado = ? WHERE id = ?",
                  (request.form["estado"], g.usuario["id"], ahora().strftime("%Y-%m-%d %H:%M"), rid))
+        r = q(REPORTES_SQL + " WHERE r.id = ?", (rid,), uno=True)
+        anotar(f"Marcó reporte como «{request.form['estado']}»", f"{r['sala']}: {r['tipo']}")
         flash("Reporte actualizado.", "ok")
     return redirect(url_for("avisos"))
 
@@ -683,6 +778,7 @@ def inventario():
                  "minimo = excluded.minimo",
                  (f["material"].strip(), f.get("unidad", "").strip(), int(numero(f.get("cantidad"))),
                   int(numero(f.get("minimo")))))
+        anotar("Actualizó inventario", f"{f['material'].strip()}: {int(numero(f.get('cantidad')))} {f.get('unidad', '').strip()}")
         flash("Material guardado.", "ok")
         return redirect(url_for("inventario"))
     return render_template("inventario.html", materiales=q(
@@ -692,11 +788,14 @@ def inventario():
 @app.post("/inventario/<int:iid>/ajustar")
 @solo("servicios", "profesor")
 def inventario_ajustar(iid):
+    m = q("SELECT * FROM inventario WHERE id = ?", (iid,), uno=True) or abort(404)
     if request.form.get("eliminar"):
         ejecutar("DELETE FROM inventario WHERE id = ?", (iid,))
+        anotar("Eliminó material", m["material"])
     else:
-        ejecutar("UPDATE inventario SET cantidad = MAX(0, cantidad + ?) WHERE id = ?",
-                 (request.form.get("delta", 0, type=int), iid))
+        delta = request.form.get("delta", 0, type=int)
+        ejecutar("UPDATE inventario SET cantidad = MAX(0, cantidad + ?) WHERE id = ?", (delta, iid))
+        anotar("Ajustó inventario", f"{m['material']}: {delta:+d}")
     return redirect(url_for("inventario"))
 
 
@@ -717,6 +816,7 @@ def usuarios():
             try:
                 ejecutar("INSERT INTO usuarios(usuario, nombre, rol, clave) VALUES (?, ?, ?, ?)",
                          (f["usuario"], f["nombre"], f["rol"], generate_password_hash(f["clave"])))
+                anotar("Creó usuario", f"{f['usuario']} ({ROLES[f['rol']]})")
                 flash(f"Usuario {f['usuario']} creado.", "ok")
             except sqlite3.IntegrityError:
                 flash("Ese nombre de usuario ya existe.", "error")
@@ -729,17 +829,53 @@ def usuarios():
 @app.post("/usuarios/<int:uid>")
 @solo("profesor")
 def usuario_actualizar(uid):
+    u = q("SELECT * FROM usuarios WHERE id = ?", (uid,), uno=True) or abort(404)
     if uid == g.usuario["id"]:
         flash("No puedes modificar tu propia cuenta desde aquí.", "error")
     elif request.form.get("activo") in ("0", "1"):
         ejecutar("UPDATE usuarios SET activo = ? WHERE id = ?", (int(request.form["activo"]), uid))
+        anotar("Activó usuario" if request.form["activo"] == "1" else "Desactivó usuario", u["usuario"])
         flash("Usuario actualizado.", "ok")
     elif len(request.form.get("clave", "")) >= 6:
         ejecutar("UPDATE usuarios SET clave = ? WHERE id = ?", (generate_password_hash(request.form["clave"]), uid))
+        anotar("Restableció clave", u["usuario"])
         flash("Clave restablecida.", "ok")
     else:
         flash("La clave debe tener al menos 6 caracteres.", "error")
     return redirect(url_for("usuarios"))
+
+
+# ---------- bitacora y copias de seguridad (profesor) ----------
+@app.route("/bitacora")
+@solo("profesor")
+def bitacora():
+    texto = request.args.get("q", "").strip()
+    usuario = request.args.get("usuario", type=int)
+    sql, args = BITACORA_SQL + " WHERE (b.accion LIKE ? OR b.detalle LIKE ? OR p.nombre LIKE ?)", [f"%{texto}%"] * 3
+    if usuario:
+        sql += " AND b.usuario_id = ?"
+        args.append(usuario)
+    return render_template("bitacora.html", texto=texto, usuario=usuario,
+                           registros=q(sql + " ORDER BY b.id DESC LIMIT 300", args),
+                           usuarios=q("SELECT id, nombre FROM usuarios ORDER BY nombre"),
+                           respaldos=sorted((p.name for p in RESPALDOS.glob("dientecito-*.db")), reverse=True))
+
+
+@app.route("/respaldo")
+@solo("profesor")
+def descargar_respaldo():
+    """Descarga un .zip con la base de datos y todas las fotos, para guardarlo fuera del servidor."""
+    carpeta = Path(tempfile.mkdtemp())
+    copiar_db(carpeta / "dientecito.db")
+    nombre = f"respaldo-dientecito-{ahora():%Y-%m-%d-%H%M}.zip"
+    with zipfile.ZipFile(carpeta / nombre, "w", zipfile.ZIP_DEFLATED) as z:
+        z.write(carpeta / "dientecito.db", "dientecito.db")
+        for foto in sorted(FOTOS.glob("*")) if FOTOS.exists() else []:
+            z.write(foto, f"fotos/{foto.name}", compress_type=zipfile.ZIP_STORED)  # ya vienen comprimidas
+    anotar("Descargó copia de seguridad")
+    respuesta = send_file(carpeta / nombre, as_attachment=True, download_name=nombre)
+    respuesta.call_on_close(lambda: shutil.rmtree(carpeta, ignore_errors=True))
+    return respuesta
 
 
 iniciar_db()

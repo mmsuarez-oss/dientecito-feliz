@@ -11,6 +11,16 @@ Sistema de gestión para la **Clínica Odontológica UAM**. Es una aplicación w
 
 Cuentas de ejemplo que se crean la primera vez: `estudiante`, `profesor` y `servicios`, todas con la clave `uam2026` (se puede cambiar con la variable de entorno `DIENTECITO_CLAVE`). El profesor crea las demás cuentas en la pestaña *Usuarios*.
 
+## Protección de los datos
+- Los expedientes **no se borran**: el profesor los archiva indicando un motivo, y puede restaurarlos.
+- Una **bitácora** registra quién hizo qué y cuándo, incluidos el valor anterior y el nuevo de cada edición.
+- Se hace una **copia diaria automática** de la base de datos (se conservan 14), y el profesor puede descargar un `.zip` con la base y todas las fotos.
+
+## Documentación
+- [Diccionario de datos](docs/diccionario-de-datos.md)
+- [Manual de usuario](docs/manual-de-usuario.md)
+- [Plan de pruebas](docs/plan-de-pruebas.md). Para ejecutar las pruebas: `python pruebas.py` (31 casos, usa una base de datos temporal).
+
 ## Ejecutar en tu computadora
 ```bash
 pip install -r requirements.txt
@@ -25,6 +35,6 @@ Los teléfonos conectados a la misma red Wi-Fi pueden entrar con la dirección q
 
 Ese mismo comando sirve para publicar cada actualización. La base de datos del servidor no se toca, así que los datos se conservan.
 
-> La base de datos (`dientecito.db`) y las fotos (`fotos/`) nunca se suben al repositorio.
+> La base de datos (`dientecito.db`), las fotos (`fotos/`) y los respaldos (`respaldos/`) nunca se suben al repositorio.
 
 Proyecto de curso · Equipo: Andrés Castillo, Camilo Cruz, Reynaldo Mondragón, Roberto Silva, Miguel Suárez.

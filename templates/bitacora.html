@@ -1,0 +1,48 @@
+{% extends 'base.html' %}
+{% block titulo %}Bitácora{% endblock %}
+{% block contenido %}
+<div class="columnas">
+  <div>
+    <fieldset>
+      <legend>Copia de seguridad</legend>
+      <p>Descarga un archivo .zip con la base de datos y todas las fotos del odontograma. Guárdelo fuera del servidor
+         (computadora, Drive) al menos una vez por semana.</p>
+      <div class="acciones"><a class="btn" href="{{ url_for('descargar_respaldo') }}">Descargar copia</a></div>
+    </fieldset>
+    <fieldset>
+      <legend>Copias automáticas en el servidor</legend>
+      <p class="tenue">Se crea una copia de la base de datos cada día y se conservan las últimas 14.</p>
+      {% for r in respaldos %}<div>{{ r }}</div>{% else %}<div class="tenue">Aún no hay copias.</div>{% endfor %}
+    </fieldset>
+  </div>
+
+  <div>
+    <form class="filtros" role="search">
+      <input type="search" name="q" value="{{ texto }}" placeholder="Buscar acción, detalle o paciente" data-buscar autocomplete="off">
+      <select name="usuario" data-autoenviar aria-label="Usuario">
+        <option value="">Todos los usuarios</option>
+        {% for u in usuarios %}<option value="{{ u.id }}" {{ 'selected' if u.id == usuario }}>{{ u.nombre }}</option>{% endfor %}
+      </select>
+    </form>
+    <div class="tabla">
+      <table>
+        <thead><tr><th>Fecha</th><th>Usuario</th><th>Acción</th><th>Paciente</th><th>Detalle</th></tr></thead>
+        <tbody>
+        {% for b in registros %}
+          <tr>
+            <td class="fecha">{{ b.fecha }}</td>
+            <td>{{ b.usuario or '—' }}</td>
+            <td>{{ b.accion }}</td>
+            <td>{% if b.paciente_id %}<a href="{{ url_for('expediente', pid=b.paciente_id) }}">{{ b.paciente or b.paciente_id }}</a>{% endif %}</td>
+            <td>{{ b.detalle or '' }}</td>
+          </tr>
+        {% else %}
+          <tr><td class="vacio" colspan="5">No hay registros.</td></tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <p class="tenue">Se muestran los 300 registros más recientes.</p>
+  </div>
+</div>
+{% endblock %}

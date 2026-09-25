@@ -31,6 +31,14 @@
   </div>
 </div>
 
+{% if p.archivado %}
+<div class="mensaje aviso">
+  Paciente archivado{% if archivo %} el {{ archivo.fecha[:10] }} por {{ archivo.usuario }}. Motivo: {{ archivo.detalle }}{% endif %}.
+  <form method="post" action="{{ url_for('paciente_archivar', pid=p.id) }}" style="display: inline">
+    <button class="btn chico" name="restaurar" value="1">Restaurar</button>
+  </form>
+</div>
+{% endif %}
 {% if p.alergias %}<div class="alergia">ALERGIAS: {{ p.alergias }}</div>{% endif %}
 
 <nav class="pestanas subpestanas" data-pestanas>
@@ -39,6 +47,7 @@
   <a href="#tratamientos">Tratamientos y cobros</a>
   <a href="#consentimiento">Consentimiento</a>
   <a href="#citas">Citas</a>
+  {% if profesor %}<a href="#historial">Historial de cambios</a>{% endif %}
 </nav>
 <div class="panel subpanel">
 
@@ -135,9 +144,11 @@
                 {% else %}<span class="verde">Pagado</span>{% endif %}
               </td>
               <td>
+                {% if not t.pagado or profesor %}
                 <form method="post" action="{{ url_for('tratamiento_actualizar', tid=t.id) }}" data-confirmar="¿Eliminar este tratamiento?">
                   <button class="btn chico peligro" name="eliminar" value="1">Eliminar</button>
                 </form>
+                {% endif %}
               </td>
             </tr>
           {% else %}
@@ -171,10 +182,31 @@
   <a class="btn" href="{{ url_for('citas', paciente=p.id) }}">Agendar cita</a>
 </section>
 
+{% if profesor %}
+<section id="historial" class="seccion">
+  <p class="tenue">Registro de todo lo que se ha hecho en este expediente. No se puede modificar.</p>
+  <div class="tabla">
+    <table>
+      <thead><tr><th>Fecha</th><th>Usuario</th><th>Acción</th><th>Detalle</th></tr></thead>
+      <tbody>
+      {% for b in historial %}
+        <tr><td class="fecha">{{ b.fecha }}</td><td>{{ b.usuario or '' }}</td><td>{{ b.accion }}</td><td>{{ b.detalle or '' }}</td></tr>
+      {% else %}
+        <tr><td class="vacio" colspan="4">Sin cambios registrados.</td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+{% endif %}
+
 </div>
 
-<form method="post" action="{{ url_for('paciente_eliminar', pid=p.id) }}" style="margin-top: 14px; text-align: right"
-      data-confirmar="¿Eliminar a {{ p.nombre }} con todo su expediente? No se puede deshacer.">
-  <button class="btn peligro">Eliminar paciente</button>
+{% if profesor and not p.archivado %}
+<form method="post" action="{{ url_for('paciente_archivar', pid=p.id) }}" class="en-linea" style="margin-top: 14px; justify-content: flex-end"
+      data-confirmar="¿Archivar a {{ p.nombre }}? Dejará de aparecer en las listas, pero su expediente se conserva.">
+  <input name="motivo" required placeholder="Motivo para archivar (alta, abandono, duplicado…)" style="max-width: 360px" aria-label="Motivo">
+  <button class="btn">Archivar paciente</button>
 </form>
+{% endif %}
 {% endblock %}

@@ -9,6 +9,9 @@
     {% for e in estudiantes %}<option value="{{ e.id }}" {{ 'selected' if e.id == est }}>{{ e.nombre }}</option>{% endfor %}
   </select>
   {% endif %}
+  {% if g.usuario.rol == 'profesor' %}
+  <label class="en-linea" style="flex: none"><input type="checkbox" name="archivados" value="1" {{ 'checked' if archivados }} data-autoenviar> Ver archivados</label>
+  {% endif %}
   <a class="btn" href="{{ url_for('paciente_form') }}">Nuevo paciente</a>
 </form>
 
@@ -31,7 +34,7 @@
         <td>{% if p.firma %}<span class="verde">Firmado</span>{% else %}<span class="amarillo">Falta</span>{% endif %}</td>
       </tr>
     {% else %}
-      <tr><td class="vacio" colspan="8">{{ 'No se encontraron pacientes.' if texto else 'Aún no hay pacientes registrados.' }}</td></tr>
+      <tr><td class="vacio" colspan="8">{{ 'No hay pacientes archivados.' if archivados else ('No se encontraron pacientes.' if texto else 'Aún no hay pacientes registrados.') }}</td></tr>
     {% endfor %}
     </tbody>
   </table>

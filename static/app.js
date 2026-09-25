@@ -7,7 +7,7 @@ $$('form[data-confirmar]').forEach(f =>
   f.addEventListener('submit', e => { if (!confirm(f.dataset.confirmar)) e.preventDefault(); }));
 
 // Listas desplegables que se guardan al cambiar
-$$('select[data-autoenviar]').forEach(s => s.addEventListener('change', () => s.form.submit()));
+$$('[data-autoenviar]').forEach(s => s.addEventListener('change', () => s.form.submit()));
 
 // Busqueda mientras se escribe
 $$('input[data-buscar]').forEach(input => {
@@ -37,6 +37,7 @@ if (pestanas) {
     history.replaceState(null, '', a.hash);
     mostrar(a.hash.slice(1));
   }));
+  window.addEventListener('hashchange', () => mostrar(location.hash.slice(1)));
   mostrar(location.hash.slice(1));
 }
 
