@@ -1,45 +1,44 @@
 {% extends 'base.html' %}
-{% from '_macros.html' import tarjeta_cita, vacio %}
+{% from '_macros.html' import tabla_citas with context %}
 {% block titulo %}Citas{% endblock %}
 {% block contenido %}
-<header class="cabecera"><h1>Citas</h1></header>
-
-<details class="tarjeta desplegable" id="nueva" {{ 'open' if elegido or not citas }}>
-  <summary><h3>➕ Agendar cita</h3></summary>
-  {% if pacientes %}
+<div class="columnas">
   <form method="post">
-    <div class="rejilla">
-      <label class="ancho">Paciente
+    <fieldset>
+      <legend>Agendar cita</legend>
+      {% if pacientes %}
+      <label class="campo"><span>Paciente:</span>
         <select name="paciente_id" required>
-          <option value="">Elige un paciente…</option>
-          {% for p in pacientes %}<option value="{{ p.id }}" {{ 'selected' if p.id == elegido }}>{{ p.nombre }} · {{ p.cedula }}</option>{% endfor %}
+          <option value="">Seleccione…</option>
+          {% for p in pacientes %}<option value="{{ p.id }}" {{ 'selected' if p.id == elegido }}>{{ p.nombre }} ({{ p.cedula }})</option>{% endfor %}
         </select>
       </label>
-      <label>Fecha<input type="date" name="fecha" min="{{ hoy }}" value="{{ hoy }}" required></label>
-      <label>Hora<input type="time" name="hora" step="900" required></label>
-      <label>Motivo<input name="motivo" placeholder="Ej.: Valoración, profilaxis…" list="motivos"></label>
-      <label>Estudiante que atiende<input name="estudiante" data-recordar="estudiante" placeholder="Tu nombre"></label>
-    </div>
-    <datalist id="motivos">
-      {% for m in ['Valoración', 'Historia clínica', 'Profilaxis', 'Operatoria', 'Periodoncia', 'Endodoncia', 'Exodoncia', 'Control'] %}<option value="{{ m }}">{% endfor %}
-    </datalist>
-    <button class="btn primario grande">📅 Agendar</button>
+      <label class="campo"><span>Fecha:</span><input type="date" name="fecha" min="{{ hoy }}" value="{{ hoy }}" required></label>
+      <label class="campo"><span>Hora:</span><input type="time" name="hora" step="900" required></label>
+      <label class="campo"><span>Sala:</span>
+        <select name="sala_id">
+          <option value="">Sin asignar</option>
+          {% for s in salas %}<option value="{{ s.id }}">{{ s.nombre }}{% if s.pendiente %} (necesita {{ s.pendiente|lower|replace(',', ' y ') }}){% endif %}</option>{% endfor %}
+        </select>
+      </label>
+      <label class="campo"><span>Motivo:</span><input name="motivo" list="motivos"></label>
+      <datalist id="motivos">
+        {% for m in ['Valoración', 'Historia clínica', 'Profilaxis', 'Operatoria', 'Periodoncia', 'Endodoncia', 'Exodoncia', 'Control'] %}<option value="{{ m }}">{% endfor %}
+      </datalist>
+      <div class="acciones"><button class="btn">Agendar</button></div>
+      {% else %}
+      <p>Primero <a href="{{ url_for('paciente_form') }}">registre un paciente</a>.</p>
+      {% endif %}
+    </fieldset>
   </form>
-  {% else %}
-    <p>Primero <a href="{{ url_for('paciente_form') }}">registra un paciente</a>.</p>
-  {% endif %}
-</details>
 
-<nav class="segmentado">
-  <a href="{{ url_for('citas') }}" class="{{ 'activo' if ver == 'proximas' }}">Próximas</a>
-  <a href="{{ url_for('citas', ver='anteriores') }}" class="{{ 'activo' if ver != 'proximas' }}">Anteriores</a>
-</nav>
-
-{% set grupos = citas|groupby('fecha') %}
-{% for fecha, grupo in (grupos if ver == 'proximas' else grupos|reverse) %}
-  <h2 class="dia">{{ fecha|fecha_larga|capitalize }} <small class="tenue">{{ fecha|fecha if fecha|fecha in ('Hoy', 'Mañana') }}</small></h2>
-  {% for c in grupo|sort(attribute='hora', reverse=(ver != 'proximas')) %}{{ tarjeta_cita(c) }}{% endfor %}
-{% else %}
-  {{ vacio('📅', 'No hay citas próximas.' if ver == 'proximas' else 'No hay citas anteriores.') }}
-{% endfor %}
+  <div>
+    <div class="filtros">
+      <a class="btn {{ 'activa' if ver == 'proximas' }}" href="{{ url_for('citas') }}">Próximas</a>
+      <a class="btn {{ 'activa' if ver != 'proximas' }}" href="{{ url_for('citas', ver='anteriores') }}">Anteriores</a>
+    </div>
+    {{ tabla_citas(citas, con_estudiante=g.usuario.rol == 'profesor',
+                   vacio='No hay citas próximas.' if ver == 'proximas' else 'No hay citas anteriores.') }}
+  </div>
+</div>
 {% endblock %}

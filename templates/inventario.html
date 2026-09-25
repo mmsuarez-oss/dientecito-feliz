@@ -1,43 +1,42 @@
 {% extends 'base.html' %}
-{% from '_macros.html' import vacio %}
 {% block titulo %}Inventario{% endblock %}
 {% block contenido %}
-<header class="cabecera"><h1>Inventario</h1></header>
-
-<details class="tarjeta desplegable" {{ 'open' if not materiales }}>
-  <summary><h3>➕ Agregar o actualizar material</h3></summary>
+<div class="columnas">
   <form method="post">
-    <div class="rejilla">
-      <label class="ancho">Material<input name="material" required placeholder="Ej.: Guantes de látex talla M" list="lista-materiales" autocomplete="off"></label>
-      <label>Unidad<input name="unidad" placeholder="cajas, unidades…"></label>
-      <label>Cantidad actual<input name="cantidad" type="number" min="0" inputmode="numeric" required></label>
-      <label>Avisar cuando queden<input name="minimo" type="number" min="0" inputmode="numeric" value="2"></label>
-    </div>
-    <datalist id="lista-materiales">{% for m in materiales %}<option value="{{ m.material }}">{% endfor %}</datalist>
-    <button class="btn primario">Guardar</button>
+    <fieldset>
+      <legend>Agregar o actualizar material</legend>
+      <label class="campo"><span>Material:</span><input name="material" required list="lista-materiales" autocomplete="off"></label>
+      <label class="campo"><span>Unidad:</span><input name="unidad" placeholder="cajas, unidades…"></label>
+      <label class="campo"><span>Cantidad:</span><input name="cantidad" type="number" min="0" inputmode="numeric" required></label>
+      <label class="campo"><span>Mínimo:</span><input name="minimo" type="number" min="0" inputmode="numeric" value="2"></label>
+      <datalist id="lista-materiales">{% for m in materiales %}<option value="{{ m.material }}">{% endfor %}</datalist>
+      <div class="acciones"><button class="btn">Guardar</button></div>
+    </fieldset>
   </form>
-</details>
 
-{% if materiales %}
-<form class="buscador" onsubmit="return false"><input type="search" placeholder="🔍 Filtrar materiales" data-filtrar=".material"></form>
-{% endif %}
-
-{% for m in materiales %}
-  <div class="tarjeta material {{ 'bajo' if m.cantidad <= m.minimo }}" id="m{{ m.id }}" data-texto="{{ m.material|lower }}">
-    <div class="crece">
-      <b>{{ m.material }}</b>
-      <small class="tenue">{% if m.cantidad <= m.minimo %}⚠️ Quedan pocos · {% endif %}aviso en {{ m.minimo }}</small>
-    </div>
-    <form method="post" action="{{ url_for('inventario_ajustar', iid=m.id) }}" class="contador">
-      <button class="btn redondo" name="delta" value="-1" aria-label="Quitar uno">−</button>
-      <span><b>{{ m.cantidad }}</b><small>{{ m.unidad }}</small></span>
-      <button class="btn redondo" name="delta" value="1" aria-label="Agregar uno">+</button>
-    </form>
-    <form method="post" action="{{ url_for('inventario_ajustar', iid=m.id) }}" data-confirmar="¿Eliminar {{ m.material }}?">
-      <button class="btn texto peligro" name="eliminar" value="1" aria-label="Eliminar">✕</button>
-    </form>
+  <div class="tabla">
+    <table>
+      <thead><tr><th>Material</th><th class="num">Cantidad</th><th>Unidad</th><th class="num">Mínimo</th><th>Estado</th><th></th></tr></thead>
+      <tbody>
+      {% for m in materiales %}
+        <tr>
+          <td>{{ m.material }}</td>
+          <td class="num"><b>{{ m.cantidad }}</b></td>
+          <td>{{ m.unidad or '' }}</td>
+          <td class="num">{{ m.minimo }}</td>
+          <td>{% if m.cantidad <= m.minimo %}<span class="rojo">Reponer</span>{% else %}<span class="verde">Suficiente</span>{% endif %}</td>
+          <td class="num">
+            <form method="post" action="{{ url_for('inventario_ajustar', iid=m.id) }}" class="en-linea" style="justify-content: flex-end">
+              <button class="btn chico" name="delta" value="-1" aria-label="Restar uno">−</button>
+              <button class="btn chico" name="delta" value="1" aria-label="Sumar uno">+</button>
+            </form>
+          </td>
+        </tr>
+      {% else %}
+        <tr><td class="vacio" colspan="6">No hay materiales registrados.</td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
   </div>
-{% else %}
-  {{ vacio('📦', 'Aún no hay materiales registrados.') }}
-{% endfor %}
+</div>
 {% endblock %}

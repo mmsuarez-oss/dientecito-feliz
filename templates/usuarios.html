@@ -1,0 +1,51 @@
+{% extends 'base.html' %}
+{% block titulo %}Usuarios{% endblock %}
+{% block contenido %}
+<div class="columnas">
+  <form method="post">
+    <fieldset>
+      <legend>Nuevo usuario</legend>
+      <label class="campo"><span>Nombre:</span><input name="nombre" required></label>
+      <label class="campo"><span>Usuario:</span><input name="usuario" required autocapitalize="none" autocomplete="off" pattern="[a-zA-Z0-9._\-]{3,30}" title="De 3 a 30 letras o números, sin espacios"></label>
+      <label class="campo"><span>Rol:</span>
+        <select name="rol">{% for clave, nombre in ROLES.items() %}<option value="{{ clave }}">{{ nombre }}</option>{% endfor %}</select>
+      </label>
+      <label class="campo"><span>Clave inicial:</span><input name="clave" required minlength="6" autocomplete="new-password"></label>
+      <div class="acciones"><button class="btn">Crear usuario</button></div>
+    </fieldset>
+    <p class="tenue">Cada persona puede cambiar su clave en "Mi cuenta".</p>
+  </form>
+
+  <div class="tabla">
+    <table>
+      <thead><tr><th>Nombre</th><th>Usuario</th><th>Rol</th><th class="num">Pacientes</th><th>Estado</th><th>Restablecer clave</th><th></th></tr></thead>
+      <tbody>
+      {% for u in usuarios %}
+        <tr>
+          <td>{{ u.nombre }}</td>
+          <td>{{ u.usuario }}</td>
+          <td>{{ ROLES[u.rol] }}</td>
+          <td class="num">{{ u.pacientes if u.rol == 'estudiante' else '' }}</td>
+          <td>{% if u.activo %}<span class="verde">Activo</span>{% else %}<span class="tenue">Desactivado</span>{% endif %}</td>
+          {% if u.id != g.usuario.id %}
+          <td>
+            <form method="post" action="{{ url_for('usuario_actualizar', uid=u.id) }}" class="en-linea">
+              <input name="clave" minlength="6" required placeholder="Nueva clave" aria-label="Nueva clave" style="max-width: 130px" autocomplete="new-password">
+              <button class="btn chico">Cambiar</button>
+            </form>
+          </td>
+          <td>
+            <form method="post" action="{{ url_for('usuario_actualizar', uid=u.id) }}">
+              <button class="btn chico {{ 'peligro' if u.activo }}" name="activo" value="{{ 0 if u.activo else 1 }}">{{ 'Desactivar' if u.activo else 'Activar' }}</button>
+            </form>
+          </td>
+          {% else %}
+          <td class="tenue" colspan="2">(tu cuenta)</td>
+          {% endif %}
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

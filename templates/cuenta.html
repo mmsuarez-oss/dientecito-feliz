@@ -1,0 +1,20 @@
+{% extends 'base.html' %}
+{% block titulo %}Mi cuenta{% endblock %}
+{% block contenido %}
+<div class="columnas">
+  <form method="post">
+    <fieldset>
+      <legend>Cambiar clave</legend>
+      <label class="campo"><span>Clave actual:</span><input name="actual" type="password" required autocomplete="current-password"></label>
+      <label class="campo"><span>Clave nueva:</span><input name="nueva" type="password" required minlength="6" autocomplete="new-password"></label>
+      <label class="campo"><span>Repetir:</span><input name="repetir" type="password" required minlength="6" autocomplete="new-password"></label>
+      <div class="acciones"><button class="btn">Guardar</button></div>
+    </fieldset>
+  </form>
+  <dl class="datos">
+    <dt>Nombre</dt><dd>{{ g.usuario.nombre }}</dd>
+    <dt>Usuario</dt><dd>{{ g.usuario.usuario }}</dd>
+    <dt>Rol</dt><dd>{{ ROLES[g.usuario.rol] }}</dd>
+  </dl>
+</div>
+{% endblock %}

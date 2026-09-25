@@ -1,0 +1,40 @@
+{% extends 'base.html' %}
+{% from '_macros.html' import tabla_citas, tabla_salas, tabla_registros with context %}
+{% block contenido %}
+<p class="tenue">Hoy es {{ hoy|fecha_larga }}.</p>
+
+<h2>Odontogramas por revisar ({{ registros|length }})</h2>
+<p class="tenue">Revise la foto de cada práctica y apruébela o pida corrección.</p>
+{{ tabla_registros(registros, con_paciente=true, revisar=true, vacio='No hay registros pendientes de revisión.') }}
+
+<h2>Pacientes por aprobar ({{ por_aprobar|length }})</h2>
+<div class="tabla">
+  <table>
+    <thead><tr><th>Paciente</th><th>Cédula</th><th>Estudiante</th><th>Motivo de consulta</th><th></th></tr></thead>
+    <tbody>
+    {% for p in por_aprobar %}
+      <tr>
+        <td><a href="{{ url_for('expediente', pid=p.id) }}">{{ p.nombre }}</a></td>
+        <td>{{ p.cedula }}</td>
+        <td>{{ p.estudiante_nombre or '' }}</td>
+        <td>{{ p.motivo_consulta or '' }}</td>
+        <td class="num">
+          <form method="post" action="{{ url_for('aprobar', pid=p.id) }}">
+            <input type="hidden" name="volver" value="{{ url_for('inicio') }}">
+            <button class="btn chico" name="aprobado" value="1">Aprobar</button>
+          </form>
+        </td>
+      </tr>
+    {% else %}
+      <tr><td class="vacio" colspan="5">No hay pacientes pendientes de aprobación.</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<h2>Citas de hoy</h2>
+{{ tabla_citas(citas_hoy, con_estudiante=true, vacio='No hay citas para hoy.') }}
+
+<h2>Estado de las salas</h2>
+{{ tabla_salas(salas) }}
+{% endblock %}

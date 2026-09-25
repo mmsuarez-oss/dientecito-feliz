@@ -1,0 +1,21 @@
+{% extends 'base.html' %}
+{% from '_macros.html' import tabla_citas, tabla_salas, tabla_registros with context %}
+{% block contenido %}
+<p class="tenue">Hoy es {{ hoy|fecha_larga }}.</p>
+
+<h2>Mis citas de hoy</h2>
+{{ tabla_citas(citas_hoy, vacio='No tienes citas para hoy.') }}
+
+{% if por_recordar %}
+<h2>Citas por confirmar (próximos 3 días)</h2>
+<p class="tenue">Envía el recordatorio por WhatsApp y cambia el estado a "Confirmada" cuando el paciente responda.</p>
+{{ tabla_citas(por_recordar) }}
+{% endif %}
+
+<h2>Mis registros de odontograma</h2>
+<p class="tenue">Registros que el profesor aún no aprueba o que debes corregir.</p>
+{{ tabla_registros(registros, con_paciente=true, vacio='No tienes registros pendientes.') }}
+
+<h2>Estado de las salas</h2>
+{{ tabla_salas(salas) }}
+{% endblock %}

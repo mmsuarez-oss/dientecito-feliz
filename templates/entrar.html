@@ -1,15 +1,24 @@
 {% extends 'base.html' %}
 {% block titulo %}Entrar{% endblock %}
-{% block contenido %}
+{% block publico %}
 <div class="entrar">
-  <div class="logo-grande">🦷</div>
-  <h1>Dientecito Feliz</h1>
-  <p class="tenue">Clínica Odontológica UAM</p>
-  <form method="post" class="tarjeta">
-    <label>Clave de la clínica
-      <input type="password" name="clave" autofocus required autocomplete="current-password" inputmode="text">
-    </label>
-    <button class="btn primario grande">Entrar</button>
-  </form>
+  <span class="titulo">Dientecito Feliz<small>Clínica Odontológica UAM</small></span>
+  <div class="panel" style="min-height: 0">
+    {% for tipo, texto in get_flashed_messages(with_categories=true) %}<div class="mensaje {{ tipo }}">{{ texto }}</div>{% endfor %}
+    <form method="post">
+      <fieldset>
+        <legend>Iniciar sesión</legend>
+        <label class="campo"><span>Usuario:</span><input name="usuario" required autofocus autocapitalize="none" autocomplete="username"></label>
+        <label class="campo"><span>Clave:</span><input name="clave" type="password" required autocomplete="current-password"></label>
+        <div class="acciones"><button class="btn">Entrar</button></div>
+      </fieldset>
+    </form>
+    {% if DEMO %}
+    <div class="cuentas-prueba tenue">
+      Cuentas de prueba (clave <b>uam2026</b>):
+      <b>estudiante</b>, <b>profesor</b> o <b>servicios</b>.
+    </div>
+    {% endif %}
+  </div>
 </div>
 {% endblock %}

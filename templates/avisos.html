@@ -1,0 +1,47 @@
+{% extends 'base.html' %}
+{% block titulo %}Avisos{% endblock %}
+{% block cabeza %}<meta http-equiv="refresh" content="60">{% endblock %}
+{% block contenido %}
+<p class="tenue">Reportes de salas que necesitan reparación o limpieza. Esta página se actualiza sola cada minuto.</p>
+
+<h2>Pendientes ({{ abiertos|length }})</h2>
+<div class="tabla">
+  <table>
+    <thead><tr><th>Fecha</th><th>Sala</th><th>Problema</th><th>Detalle</th><th>Reportó</th><th>Estado</th><th></th></tr></thead>
+    <tbody>
+    {% for r in abiertos %}
+      <tr>
+        <td>{{ r.fecha }}</td>
+        <td><b>{{ r.sala }}</b></td>
+        <td class="{{ 'rojo' if r.tipo == 'Reparación' else 'amarillo' }}">{{ r.tipo }}</td>
+        <td>{{ r.descripcion or '' }}</td>
+        <td>{{ r.reporta or '' }}</td>
+        <td>{{ r.estado }}{% if r.atiende %}<div class="tenue">{{ r.atiende }}</div>{% endif %}</td>
+        <td class="num">
+          <form method="post" action="{{ url_for('reporte_estado', rid=r.id) }}" class="en-linea" style="justify-content: flex-end">
+            {% if r.estado == 'Pendiente' %}<button class="btn chico" name="estado" value="En proceso">Atender</button>{% endif %}
+            <button class="btn chico" name="estado" value="Resuelto">Marcar resuelto</button>
+          </form>
+        </td>
+      </tr>
+    {% else %}
+      <tr><td class="vacio" colspan="7">No hay avisos pendientes.</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<h2>Resueltos recientemente</h2>
+<div class="tabla">
+  <table>
+    <thead><tr><th>Reportado</th><th>Sala</th><th>Problema</th><th>Detalle</th><th>Resuelto</th><th>Atendió</th></tr></thead>
+    <tbody>
+    {% for r in resueltos %}
+      <tr><td>{{ r.fecha }}</td><td>{{ r.sala }}</td><td>{{ r.tipo }}</td><td>{{ r.descripcion or '' }}</td><td>{{ r.actualizado }}</td><td>{{ r.atiende or '' }}</td></tr>
+    {% else %}
+      <tr><td class="vacio" colspan="6">Aún no hay reportes resueltos.</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

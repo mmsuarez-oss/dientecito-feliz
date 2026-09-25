@@ -1,45 +1,41 @@
 {% extends 'base.html' %}
 {% block titulo %}{{ 'Editar paciente' if pid else 'Nuevo paciente' }}{% endblock %}
 {% block contenido %}
-<header class="cabecera">
-  <div>
-    <a class="atras" href="{{ url_for('expediente', pid=pid) if pid else url_for('pacientes') }}">‹ Volver</a>
-    <h1>{{ 'Editar paciente' if pid else 'Nuevo paciente' }}</h1>
-  </div>
-</header>
+<p><a href="{{ url_for('expediente', pid=pid) if pid else url_for('pacientes') }}">&larr; Volver</a></p>
 
-<form method="post" class="formulario">
-  <fieldset class="tarjeta">
-    <legend>Datos personales</legend>
-    <div class="rejilla">
-      <label class="ancho">Nombre completo *<input name="nombre" value="{{ p.nombre or '' }}" required autocomplete="off"></label>
-      <label>Cédula *<input name="cedula" value="{{ p.cedula or '' }}" required placeholder="001-010190-0001A" autocomplete="off"></label>
-      <label>Teléfono / WhatsApp<input name="telefono" type="tel" value="{{ p.telefono or '' }}" placeholder="8888 8888" inputmode="tel"></label>
-      <label>Fecha de nacimiento<input name="nacimiento" type="date" value="{{ p.nacimiento or '' }}"></label>
-      <label>Sexo
-        <select name="sexo">
-          {% for s in ['', 'Femenino', 'Masculino'] %}<option {{ 'selected' if s == (p.sexo or '') }}>{{ s }}</option>{% endfor %}
+<form method="post">
+  <div class="columnas anchas">
+    <fieldset>
+      <legend>Datos personales</legend>
+      <label class="campo"><span>Nombre: *</span><input name="nombre" value="{{ p.nombre or '' }}" required autocomplete="off"></label>
+      <label class="campo"><span>Cédula: *</span><input name="cedula" value="{{ p.cedula or '' }}" required autocomplete="off"></label>
+      <label class="campo"><span>Teléfono:</span><input name="telefono" type="tel" value="{{ p.telefono or '' }}" inputmode="tel"></label>
+      <label class="campo"><span>Nacimiento:</span><input name="nacimiento" type="date" value="{{ p.nacimiento or '' }}"></label>
+      <label class="campo"><span>Sexo:</span>
+        <select name="sexo">{% for s in ['', 'Femenino', 'Masculino'] %}<option {{ 'selected' if s == (p.sexo or '') }}>{{ s }}</option>{% endfor %}</select>
+      </label>
+      <label class="campo"><span>Dirección:</span><input name="direccion" value="{{ p.direccion or '' }}"></label>
+      <label class="campo"><span>Contacto emergencia:</span><input name="contacto_emergencia" value="{{ p.contacto_emergencia or '' }}"></label>
+      {% if g.usuario.rol == 'profesor' %}
+      <label class="campo"><span>Estudiante:</span>
+        <select name="estudiante_id">
+          <option value="">Sin asignar</option>
+          {% for e in estudiantes %}<option value="{{ e.id }}" {{ 'selected' if e.id == p.estudiante_id }}>{{ e.nombre }}</option>{% endfor %}
         </select>
       </label>
-      <label class="ancho">Dirección<input name="direccion" value="{{ p.direccion or '' }}"></label>
-      <label class="ancho">Contacto de emergencia<input name="contacto_emergencia" value="{{ p.contacto_emergencia or '' }}" placeholder="Nombre y teléfono"></label>
-    </div>
-  </fieldset>
+      {% endif %}
+    </fieldset>
 
-  <fieldset class="tarjeta">
-    <legend>Historia clínica</legend>
-    <div class="rejilla">
-      <label class="ancho">Motivo de consulta<textarea name="motivo_consulta" rows="2">{{ p.motivo_consulta or '' }}</textarea></label>
-      <label class="ancho alerta-campo">⚠️ Alergias<input name="alergias" value="{{ p.alergias or '' }}" placeholder="Ej.: penicilina, látex. Deja vacío si no tiene"></label>
-      <label class="ancho">Antecedentes médicos<textarea name="antecedentes" rows="3" placeholder="Enfermedades, cirugías, embarazo…">{{ p.antecedentes or '' }}</textarea></label>
-      <label class="ancho">Medicamentos actuales<textarea name="medicamentos" rows="2">{{ p.medicamentos or '' }}</textarea></label>
-      <label class="ancho">Examen clínico (extraoral e intraoral)<textarea name="examen_clinico" rows="3">{{ p.examen_clinico or '' }}</textarea></label>
-      <label class="ancho">Diagnóstico y plan de tratamiento<textarea name="plan" rows="3">{{ p.plan or '' }}</textarea></label>
-    </div>
-  </fieldset>
-
-  <div class="barra-guardar">
-    <button class="btn primario grande">💾 Guardar</button>
+    <fieldset>
+      <legend>Historia clínica</legend>
+      <label class="campo arriba"><span>Motivo de consulta:</span><textarea name="motivo_consulta" rows="2">{{ p.motivo_consulta or '' }}</textarea></label>
+      <label class="campo"><span>Alergias:</span><input name="alergias" value="{{ p.alergias or '' }}" placeholder="Dejar vacío si no tiene"></label>
+      <label class="campo arriba"><span>Antecedentes:</span><textarea name="antecedentes" rows="2">{{ p.antecedentes or '' }}</textarea></label>
+      <label class="campo arriba"><span>Medicamentos:</span><textarea name="medicamentos" rows="2">{{ p.medicamentos or '' }}</textarea></label>
+      <label class="campo arriba"><span>Examen clínico:</span><textarea name="examen_clinico" rows="2">{{ p.examen_clinico or '' }}</textarea></label>
+      <label class="campo arriba"><span>Diagnóstico y plan:</span><textarea name="plan" rows="2">{{ p.plan or '' }}</textarea></label>
+    </fieldset>
   </div>
+  <div class="acciones"><button class="btn">Guardar</button></div>
 </form>
 {% endblock %}

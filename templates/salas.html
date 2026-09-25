@@ -1,0 +1,64 @@
+{% extends 'base.html' %}
+{% from '_macros.html' import tabla_salas with context %}
+{% block titulo %}Salas{% endblock %}
+{% block contenido %}
+{% set administra = g.usuario.rol in ('servicios', 'profesor') %}
+<div class="columnas">
+  <div>
+    <form method="post" id="reportar">
+      <fieldset>
+        <legend>Reportar un problema</legend>
+        <p class="tenue">El aviso llega de inmediato a Servicios.</p>
+        <label class="campo"><span>Sala:</span>
+          <select name="sala_id" required>
+            <option value="">Seleccione…</option>
+            {% for s in salas %}<option value="{{ s.id }}" {{ 'selected' if s.id == elegida }}>{{ s.nombre }}</option>{% endfor %}
+          </select>
+        </label>
+        <label class="campo"><span>Problema:</span>
+          <select name="tipo" required>
+            {% for t in TIPOS_REPORTE %}<option value="{{ t }}">{{ 'Necesita reparación' if t == 'Reparación' else 'Está sucia / necesita limpieza' }}</option>{% endfor %}
+          </select>
+        </label>
+        <label class="campo arriba"><span>Detalle:</span><textarea name="descripcion" rows="3" placeholder="Ej.: el sillón no reclina, derrame en el piso…"></textarea></label>
+        <div class="acciones"><button class="btn">Enviar aviso</button></div>
+      </fieldset>
+    </form>
+    {% if administra %}
+    <form method="post" action="{{ url_for('sala_nueva') }}">
+      <fieldset>
+        <legend>Agregar sala</legend>
+        <div class="en-linea"><input name="nombre" required placeholder="Nombre de la sala" aria-label="Nombre de la sala"><button class="btn">Agregar</button></div>
+      </fieldset>
+    </form>
+    {% endif %}
+  </div>
+
+  <div>
+    <h2>Estado de las salas</h2>
+    {{ tabla_salas(salas, con_acciones=administra) }}
+
+    <h2>Reportes recientes</h2>
+    <div class="tabla">
+      <table>
+        <thead><tr><th>Fecha</th><th>Sala</th><th>Problema</th><th>Detalle</th><th>Reportó</th><th>Estado</th></tr></thead>
+        <tbody>
+        {% for r in reportes %}
+          <tr>
+            <td>{{ r.fecha }}</td>
+            <td>{{ r.sala }}</td>
+            <td>{{ r.tipo }}</td>
+            <td>{{ r.descripcion or '' }}</td>
+            <td>{{ r.reporta or '' }}</td>
+            <td><span class="{{ {'Resuelto': 'verde', 'En proceso': 'amarillo'}.get(r.estado, 'rojo') }}">{{ r.estado }}</span>
+              {% if r.atiende %}<div class="tenue">{{ r.atiende }}</div>{% endif %}</td>
+          </tr>
+        {% else %}
+          <tr><td class="vacio" colspan="6">No hay reportes.</td></tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}
