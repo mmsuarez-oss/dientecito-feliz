@@ -9,6 +9,7 @@ import json
 import os
 import secrets
 import urllib.error
+import urllib.parse
 import urllib.request
 import uuid
 from pathlib import Path
@@ -40,8 +41,8 @@ def pedir(metodo, ruta, datos=None, archivo=None):
         cuerpo = (f"--{limite}\r\nContent-Disposition: form-data; name=\"content\"; filename=\"f\"\r\n"
                   f"Content-Type: application/octet-stream\r\n\r\n").encode() + archivo + f"\r\n--{limite}--\r\n".encode()
     elif datos is not None:
-        headers["Content-Type"] = "application/json"
-        cuerpo = json.dumps(datos).encode()
+        headers["Content-Type"] = "application/x-www-form-urlencoded"
+        cuerpo = urllib.parse.urlencode(datos).encode()
     req = urllib.request.Request(api + ruta, data=cuerpo, headers=headers, method=metodo)
     try:
         with urllib.request.urlopen(req) as r:
@@ -61,8 +62,10 @@ print(f"Subiendo {len(ARCHIVOS)} archivos a {carpeta} ...")
 for rel in ARCHIVOS:
     subir(f"{carpeta}/{rel}", (RAIZ / rel).read_bytes())
 
-estado, _ = pedir("GET", f"/webapps/{dominio}/")
-if estado == 404:
+estado, apps = pedir("GET", "/webapps/")
+if estado != 200:
+    raise SystemExit(f"No se pudo consultar la cuenta ({estado}). ¿Token o usuario incorrectos?")
+if not any(a["domain_name"] == dominio for a in apps):
     print("Creando la aplicacion web ...")
     for version in ("python313", "python312", "python311", "python310"):
         estado, resp = pedir("POST", "/webapps/", {"domain_name": dominio, "python_version": version})
@@ -71,8 +74,6 @@ if estado == 404:
             break
     else:
         raise SystemExit(f"No se pudo crear la aplicacion: {estado} {resp}")
-elif estado != 200:
-    raise SystemExit(f"No se pudo consultar la aplicacion ({estado}). ¿Token o usuario incorrectos?")
 
 wsgi = f"""import os, sys
 os.environ["DIENTECITO_CLAVE"] = {args.clave!r}
