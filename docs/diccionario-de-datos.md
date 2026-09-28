@@ -66,7 +66,6 @@ Expediente clínico del paciente.
 | motivo | TEXT | | Motivo: valoración, profilaxis, control, etc. |
 | sala_id | INTEGER | FK → salas.id | Sala asignada (opcional) |
 | estado | TEXT | Por defecto `Pendiente` | `Pendiente`, `Confirmada`, `Atendida`, `No asistió` o `Cancelada` |
-| estudiante | TEXT | | *Obsoleto* (primera versión). El estudiante ahora se obtiene del paciente |
 
 **Reglas:** un paciente no puede tener dos citas activas el mismo día. Un estudiante no puede tener dos citas a la misma hora. Una sala no puede usarse dos veces a la misma hora.
 

@@ -9,7 +9,6 @@ import os
 import re
 import secrets
 import shutil
-import socket
 import sqlite3
 import tempfile
 import uuid
@@ -63,7 +62,7 @@ CREATE TABLE IF NOT EXISTS salas(id INTEGER PRIMARY KEY, nombre TEXT UNIQUE NOT 
 CREATE TABLE IF NOT EXISTS citas(
     id INTEGER PRIMARY KEY,
     paciente_id INTEGER NOT NULL REFERENCES pacientes(id) ON DELETE CASCADE,
-    fecha TEXT NOT NULL, hora TEXT NOT NULL, motivo TEXT, estudiante TEXT);
+    fecha TEXT NOT NULL, hora TEXT NOT NULL, motivo TEXT);
 CREATE TABLE IF NOT EXISTS odontograma(
     paciente_id INTEGER REFERENCES pacientes(id) ON DELETE CASCADE,
     diente INTEGER, estado TEXT, PRIMARY KEY(paciente_id, diente));
@@ -337,11 +336,16 @@ def foto_muy_grande(_):
 
 
 # ---------- formato para las plantillas ----------
+def leer_fecha(iso):
+    try:
+        return date.fromisoformat(iso)
+    except (TypeError, ValueError):
+        return None
+
+
 @app.template_filter("fecha")
 def fecha_corta(iso):
-    try:
-        d = date.fromisoformat(iso)
-    except (TypeError, ValueError):
+    if not (d := leer_fecha(iso)):
         return iso or ""
     if d == hoy():
         return "Hoy"
@@ -352,9 +356,7 @@ def fecha_corta(iso):
 
 @app.template_filter("fecha_larga")
 def fecha_larga(iso):
-    try:
-        d = date.fromisoformat(iso)
-    except (TypeError, ValueError):
+    if not (d := leer_fecha(iso)):
         return iso or ""
     return f"{DIAS[d.weekday()]} {d.day} de {MESES[d.month - 1]}"
 
@@ -366,9 +368,7 @@ def dinero(valor):
 
 @app.template_filter("edad")
 def edad(nacimiento):
-    try:
-        n = date.fromisoformat(nacimiento)
-    except (TypeError, ValueError):
+    if not (n := leer_fecha(nacimiento)):
         return ""
     h = hoy()
     return f"{h.year - n.year - ((h.month, h.day) < (n.month, n.day))} años"
@@ -599,7 +599,6 @@ def sesion_foto(sid):
         flash("El archivo no es una imagen válida (JPG o PNG).", "error")
     else:
         ejecutar("UPDATE odonto_sesiones SET foto = ? WHERE id = ?", (foto, sid))
-        ejecutar("UPDATE odonto_registros SET foto = ? WHERE sesion_id = ?", (foto, sid))
         anotar("Cambió la foto del odontograma presencial", f"Sesión {sid}. Foto anterior: {s['foto']}", s["paciente_id"])
         flash("Foto reemplazada.", "ok")
     return volver(s["paciente_id"], "odontograma")
@@ -976,16 +975,5 @@ def descargar_respaldo():
 iniciar_db()
 
 if __name__ == "__main__":
-    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    try:
-        s.connect(("8.8.8.8", 80))
-        ip = s.getsockname()[0]
-    except OSError:
-        ip = "127.0.0.1"
-    finally:
-        s.close()
-    print("\n  Dientecito Feliz")
-    print("  En esta computadora:            http://localhost:5000")
-    print(f"  En el telefono (misma Wi-Fi):   http://{ip}:5000")
-    print(f"  Usuarios de ejemplo: profesor, estudiante, servicios (clave: {CLAVE_INICIAL})\n")
+    print(f"\n  Dientecito Feliz. Usuarios de ejemplo: profesor, estudiante, servicios (clave: {CLAVE_INICIAL})\n")
     app.run(host="0.0.0.0", port=5000)
