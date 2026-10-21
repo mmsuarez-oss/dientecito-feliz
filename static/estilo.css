@@ -8,6 +8,7 @@ body { margin: 0; background: var(--fondo); color: var(--texto);
        font: 14px/1.4 "Segoe UI", system-ui, -apple-system, Roboto, Arial, sans-serif; }
 a { color: var(--azul); }
 .app { max-width: 1120px; margin: 0 auto; padding: 8px 10px 24px; }
+.app:has(.entrar) { max-width: none; margin: 0; padding: 0; }
 .tenue { color: var(--tenue); }
 h2 { font-size: 14px; font-weight: 600; color: var(--texto); margin: 20px 0 8px; padding-bottom: 4px; border-bottom: 1px solid var(--borde); }
 h2:first-child { margin-top: 0; }
@@ -143,7 +144,55 @@ td select { width: auto; min-height: 26px; padding: 1px 4px; }
 .pad-firma { display: block; width: 100%; max-width: 520px; height: 180px; background: #fff; border: 1px dashed #888; touch-action: none; margin-bottom: 8px; }
 .firma { max-width: 320px; max-height: 150px; border: 1px solid var(--borde); background: #fff; }
 
-/* entrar */
-.entrar { max-width: 360px; margin: 12vh auto 0; }
-.entrar .titulo { display: block; text-align: center; margin-bottom: 14px; }
-.cuentas-prueba { margin-top: 10px; font-size: 13px; }
+/* entrar: como el Portal Estudiantes de UAM Class (cielo difuminado, logo blanco, tarjeta de 302px con pie gris) */
+body:has(.entrar) { background: #4a8fb6; }
+.entrar {
+  background:
+    url(fondo-entrar.png) center / cover no-repeat,
+    radial-gradient(55% 32% at 30% 62%, rgba(236, 226, 190, .9), rgba(236, 226, 190, 0)),
+    radial-gradient(45% 26% at 80% 58%, rgba(190, 212, 200, .7), rgba(190, 212, 200, 0)),
+    radial-gradient(80% 40% at 50% 0%, rgba(95, 180, 205, .8), rgba(95, 180, 205, 0)),
+    linear-gradient(180deg, #4ba2c3 0%, #5aa7c0 40%, #8fb3be 58%, #5d78a8 80%, #3b4784 100%);
+}
+.entrar { min-height: 100vh; display: flex; flex-direction: column; align-items: center; padding: 20px 12px 48px; }
+.logo-entrar { display: block; width: 180px; height: auto; margin-bottom: 13px; }
+.tarjeta-entrar { width: 302px; max-width: 100%; overflow: hidden; background: #fff; border: 1px solid #fff; border-radius: 5px;
+                  box-shadow: 0 1px 3px rgba(0, 0, 0, .5); color: #555; }
+.cuerpo-entrar { padding: 30px 30px 25px; }
+.sello { display: flex; align-items: center; justify-content: center; gap: 10px; margin-bottom: 30px; }
+.sello img { width: 46px; height: 46px; }
+.sello span { padding: 2px 0 2px 10px; border-left: 1px solid #555; font-size: 14px; line-height: 1.1; text-transform: uppercase; }
+.cuerpo-entrar input { display: block; min-height: 48px; margin-bottom: 25px; padding: 15px 25px; font-size: 13.5px; color: #555;
+                       background: #fff; border: 1px solid #fff; border-radius: 5px; box-shadow: inset 0 1px 3px rgba(0, 0, 0, .5); }
+.cuerpo-entrar input::placeholder { color: #9d9e9e; }
+.cuerpo-entrar input:focus { border-color: #53acd3; box-shadow: inset 0 1px 3px rgba(0, 0, 0, .5), 0 0 0 2px rgba(83, 172, 211, .3); }
+.con-ojo { position: relative; display: block; }
+.con-ojo input { margin-bottom: 0; padding-right: 46px; }
+.ver-clave { position: absolute; right: 8px; top: 50%; transform: translateY(-50%); display: grid; place-items: center;
+             width: 30px; height: 30px; padding: 0; border: 0; border-radius: 50%; background: transparent; cursor: pointer; }
+.ver-clave svg { width: 18px; height: 18px; fill: none; stroke: #9d9e9e; stroke-width: 1.6; }
+.ver-clave[aria-pressed="true"] svg { stroke: #53acd3; }
+.pie-entrar { display: flex; flex-direction: column; padding: 20px 30px 15px; background: #ddd; border-top: 1px solid #fff;
+              box-shadow: inset 0 1px 0 rgba(0, 0, 0, .15); }
+.ingresar { align-self: center; min-width: 99px; height: 40px; padding: 0 20px; font: inherit; font-size: 13.5px; color: #fff;
+            background: #53acd3; border: 1px solid #53acd3; border-radius: 5px; box-shadow: inset 0 0 2px rgba(255, 255, 255, .75); cursor: pointer; }
+.ingresar:hover { background: #3f98bf; }
+.ingresar:focus-visible, .olvido summary:focus-visible, .ver-clave:focus-visible { outline: 2px solid #2f7fa3; outline-offset: 2px; }
+.olvido { margin-top: 10px; }
+.olvido summary { display: block; height: 34px; line-height: 32px; font-size: 13.5px; font-weight: 600; color: #53acd3; text-align: center;
+                  list-style: none; background: linear-gradient(#fff, #f1f1f1); border: 1px solid #ddd; border-radius: 5px;
+                  box-shadow: 5px 5px 7px #aaa; cursor: pointer; }
+.olvido summary::-webkit-details-marker { display: none; }
+.olvido p { margin: 14px 2px 0; font-size: 12px; }
+.nota-entrar { margin: 19px 0 0; font-size: 10.5px; text-align: center; }
+@media (max-width: 700px) { .cuerpo-entrar input { font-size: 16px; } .logo-entrar { width: 140px; } }
+
+/* impresion / PDF del expediente: solo los datos, sin navegacion ni formularios de accion */
+@media print {
+  @page { margin: 14mm; }
+  body { background: #fff; }
+  .cabecera .sesion, .pestanas, fieldset, button, a.btn, .mensaje, canvas, input[type=file] { display: none !important; }
+  .panel { min-height: 0; border: 0; padding: 0; }
+  .seccion[hidden] { display: block !important; }
+  .seccion { margin-bottom: 14px; }
+}

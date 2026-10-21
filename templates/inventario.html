@@ -26,10 +26,15 @@
           <td class="num">{{ m.minimo }}</td>
           <td>{% if m.cantidad <= m.minimo %}<span class="rojo">Reponer</span>{% else %}<span class="verde">Suficiente</span>{% endif %}</td>
           <td class="num">
-            <form method="post" action="{{ url_for('inventario_ajustar', iid=m.id) }}" class="en-linea" style="justify-content: flex-end">
-              <button class="btn chico" name="delta" value="-1" aria-label="Restar uno">−</button>
-              <button class="btn chico" name="delta" value="1" aria-label="Sumar uno">+</button>
-            </form>
+            <div class="en-linea" style="justify-content: flex-end">
+              <form method="post" action="{{ url_for('inventario_ajustar', iid=m.id) }}">
+                <button class="btn chico" name="delta" value="-1" aria-label="Restar uno">−</button>
+                <button class="btn chico" name="delta" value="1" aria-label="Sumar uno">+</button>
+              </form>
+              <form method="post" action="{{ url_for('inventario_ajustar', iid=m.id) }}" data-confirmar="¿Eliminar {{ m.material }} del inventario?">
+                <button class="btn chico peligro" name="eliminar" value="1">Eliminar</button>
+              </form>
+            </div>
           </td>
         </tr>
       {% else %}

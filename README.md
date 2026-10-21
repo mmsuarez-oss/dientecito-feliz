@@ -11,6 +11,20 @@ Sistema de gestión para la **Clínica Odontológica UAM**. Es una aplicación w
 
 Cuentas de ejemplo que se crean la primera vez: `estudiante`, `profesor` y `servicios`, todas con la clave `uam2026` (se puede cambiar con la variable de entorno `DIENTECITO_CLAVE`). El profesor crea las demás cuentas en la pestaña *Usuarios*.
 
+## Recordatorios de cita por correo
+
+El paciente puede confirmar o cancelar su cita desde un enlace propio, sin necesidad de cuenta (botón **Correo**, además del de WhatsApp que ya existía). Para que el botón envíe correos de verdad, configure estas variables de entorno con los datos de su proveedor SMTP:
+
+```
+DIENTECITO_SMTP_HOST=smtp.ejemplo.com
+DIENTECITO_SMTP_USUARIO=correo@ejemplo.com
+DIENTECITO_SMTP_CLAVE=clave-o-token-de-app
+DIENTECITO_SMTP_PUERTO=587          # opcional, 587 por defecto
+DIENTECITO_SMTP_DESDE=correo@ejemplo.com   # opcional, usa el usuario si no se indica
+```
+
+Sin estas variables, el botón avisa que el correo no está configurado (el enlace de WhatsApp sigue funcionando igual que antes).
+
 ## Protección de los datos
 - Los expedientes **no se borran**: el profesor los archiva indicando un motivo, y puede restaurarlos.
 - Una **bitácora** registra quién hizo qué y cuándo, incluidos el valor anterior y el nuevo de cada edición.

@@ -46,7 +46,7 @@ class App(tk.Tk):
         self.con = conectar()
 
         ttk.Style(self).configure("Treeview", rowheight=24)
-        tk.Label(self, text="🦷 Dientecito Feliz", font=("Segoe UI", 18, "bold"),
+        tk.Label(self, text=" Dientecito Feliz", font=("Segoe UI", 18, "bold"),
                  fg="#1b6ca8").pack(pady=(10, 0))
 
         tabs = ttk.Notebook(self)

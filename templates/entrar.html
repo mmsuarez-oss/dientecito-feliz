@@ -1,24 +1,29 @@
 {% extends 'base.html' %}
 {% block titulo %}Entrar{% endblock %}
 {% block publico %}
-<div class="entrar">
-  <span class="titulo">Dientecito Feliz<small>Clínica Odontológica UAM</small></span>
-  <div class="panel" style="min-height: 0">
-    {% for tipo, texto in get_flashed_messages(with_categories=true) %}<div class="mensaje {{ tipo }}">{{ texto }}</div>{% endfor %}
-    <form method="post">
-      <fieldset>
-        <legend>Iniciar sesión</legend>
-        <label class="campo"><span>Usuario:</span><input name="usuario" required autofocus autocapitalize="none" autocomplete="username"></label>
-        <label class="campo"><span>Clave:</span><input name="clave" type="password" required autocomplete="current-password"></label>
-        <div class="acciones"><button class="btn">Entrar</button></div>
-      </fieldset>
-    </form>
-    {% if DEMO %}
-    <div class="cuentas-prueba tenue">
-      Cuentas de prueba (clave <b>uam2026</b>):
-      <b>estudiante</b>, <b>profesor</b> o <b>servicios</b>.
+<main class="entrar">
+  <img class="logo-entrar" src="{{ url_for('static', filename='logo-uam.png') }}" alt="Universidad Americana (UAM)" width="180" height="127">
+  <form method="post" class="tarjeta-entrar">
+    <div class="cuerpo-entrar">
+      <div class="sello"><img src="{{ url_for('static', filename='icono.svg') }}" alt=""><span>Dientecito Feliz<br>Clínica Odontológica</span></div>
+      {% for tipo, texto in get_flashed_messages(with_categories=true) %}<div class="mensaje {{ tipo }}">{{ texto }}</div>{% endfor %}
+      <input name="usuario" placeholder="Digite su usuario" aria-label="Usuario" required autofocus autocapitalize="none" autocomplete="username">
+      <label class="con-ojo">
+        <input name="clave" type="password" placeholder="Digite su contraseña" aria-label="Contraseña" required autocomplete="current-password">
+        <button type="button" class="ver-clave" data-ver-clave aria-label="Mostrar contraseña" aria-pressed="false">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>
+        </button>
+      </label>
     </div>
-    {% endif %}
-  </div>
-</div>
+    <div class="pie-entrar">
+      <button class="ingresar">Ingresar</button>
+      <details class="olvido">
+        <summary>He olvidado mi contraseña</summary>
+        <p>Pídele a tu profesor que te asigne una nueva contraseña. Después puedes cambiarla en "Mi cuenta".</p>
+      </details>
+      {% if DEMO %}<p class="nota-entrar">Cuentas de prueba: estudiante, profesor o servicios, con la contraseña uam2026.</p>
+      {% else %}<p class="nota-entrar">Clínica Odontológica UAM</p>{% endif %}
+    </div>
+  </form>
+</main>
 {% endblock %}

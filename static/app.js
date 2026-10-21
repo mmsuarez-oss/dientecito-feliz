@@ -9,6 +9,9 @@ $$('form[data-confirmar]').forEach(f =>
 // Listas desplegables que se guardan al cambiar
 $$('[data-autoenviar]').forEach(s => s.addEventListener('change', () => s.form.submit()));
 
+// Imprimir o guardar como PDF (el dialogo de impresion del navegador ya ofrece "Guardar como PDF")
+$$('[data-imprimir]').forEach(b => b.addEventListener('click', () => window.print()));
+
 // Busqueda mientras se escribe
 $$('input[data-buscar]').forEach(input => {
   let espera;
@@ -145,3 +148,12 @@ $$('form[data-firma]').forEach(form => {
   // El recuadro puede estar oculto al cargar (otra seccion); se prepara cuando se muestra
   new ResizeObserver(() => { if (!hayTrazo) preparar(); }).observe(lienzo);
 });
+
+// Mostrar u ocultar la contrasena en la pantalla de entrar
+$$('[data-ver-clave]').forEach(b => b.addEventListener('click', () => {
+  const clave = b.parentElement.querySelector('input');
+  const ver = clave.type === 'password';
+  clave.type = ver ? 'text' : 'password';
+  b.setAttribute('aria-pressed', ver);
+  b.setAttribute('aria-label', ver ? 'Ocultar contraseña' : 'Mostrar contraseña');
+}));

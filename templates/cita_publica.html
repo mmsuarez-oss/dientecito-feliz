@@ -1,0 +1,30 @@
+{% extends 'base.html' %}
+{% block titulo %}Su cita{% endblock %}
+{% block publico %}
+<div class="entrar" style="max-width: 420px">
+  <span class="titulo">Dientecito Feliz<small>Clínica Odontológica UAM</small></span>
+  <div class="panel" style="min-height: 0">
+    {% for tipo, texto in get_flashed_messages(with_categories=true) %}<div class="mensaje {{ tipo }}">{{ texto }}</div>{% endfor %}
+    <p>Hola <b>{{ c.nombre }}</b>, esta es su cita:</p>
+    <dl class="datos">
+      <dt>Fecha</dt><dd>{{ c.fecha|fecha_larga }}</dd>
+      <dt>Hora</dt><dd>{{ c.hora }}</dd>
+      {% if c.sala %}<dt>Sala</dt><dd>{{ c.sala }}</dd>{% endif %}
+      {% if c.motivo %}<dt>Motivo</dt><dd>{{ c.motivo }}</dd>{% endif %}
+      <dt>Estado</dt><dd>{{ c.estado }}</dd>
+    </dl>
+    {% if c.estado in ('Pendiente', 'Confirmada') %}
+    <div class="acciones">
+      <form method="post" data-confirmar="¿Cancelar esta cita?">
+        <button class="btn peligro" name="estado" value="Cancelada">Cancelar cita</button>
+      </form>
+      <form method="post">
+        <button class="btn" name="estado" value="Confirmada">Confirmar asistencia</button>
+      </form>
+    </div>
+    {% else %}
+    <p class="tenue">Esta cita ya no se puede modificar desde aquí.</p>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

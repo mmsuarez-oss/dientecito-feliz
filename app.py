@@ -9,12 +9,14 @@ import os
 import re
 import secrets
 import shutil
+import smtplib
 import socket
 import sqlite3
 import tempfile
 import uuid
 import zipfile
 from datetime import date, datetime, timedelta, timezone
+from email.message import EmailMessage
 from functools import wraps
 from pathlib import Path
 from urllib.parse import quote
@@ -31,6 +33,12 @@ DIAS_RESPALDO = 14
 CLAVE_INICIAL = os.environ.get("DIENTECITO_CLAVE", "uam2026")  # clave de las cuentas de ejemplo
 DEMO = bool(os.environ.get("DIENTECITO_DEMO"))  # servidor publico de prueba: muestra aviso de datos ficticios
 NICARAGUA = timezone(timedelta(hours=-6))  # el servidor puede estar en UTC
+# Correo de recordatorios: sin estas variables, "Enviar por correo" avisa que falta configurar el servidor
+SMTP_HOST = os.environ.get("DIENTECITO_SMTP_HOST")
+SMTP_PUERTO = int(os.environ.get("DIENTECITO_SMTP_PUERTO", "587"))
+SMTP_USUARIO = os.environ.get("DIENTECITO_SMTP_USUARIO")
+SMTP_CLAVE = os.environ.get("DIENTECITO_SMTP_CLAVE")
+SMTP_DESDE = os.environ.get("DIENTECITO_SMTP_DESDE", SMTP_USUARIO)
 
 ROLES = {"estudiante": "Estudiante", "profesor": "Profesor", "servicios": "Servicios"}
 MENUS = {
@@ -101,18 +109,19 @@ CREATE INDEX IF NOT EXISTS bitacora_paciente ON bitacora(paciente_id);
 """
 # Columnas agregadas despues de las primeras versiones; se anaden a bases ya existentes
 COLUMNAS_NUEVAS = {
-    "pacientes": ["sexo TEXT", "direccion TEXT", "contacto_emergencia TEXT", "motivo_consulta TEXT",
+    "pacientes": ["sexo TEXT", "direccion TEXT", "contacto_emergencia TEXT", "contacto_emergencia_nombre TEXT",
+                  "contacto_emergencia_telefono TEXT", "correo TEXT", "motivo_consulta TEXT",
                   "antecedentes TEXT", "medicamentos TEXT", "examen_clinico TEXT", "plan TEXT",
                   "docente TEXT", "aprobado INTEGER DEFAULT 0", "firma TEXT", "firma_fecha TEXT",
                   "estudiante_id INTEGER REFERENCES usuarios(id)", "archivado INTEGER DEFAULT 0"],
-    "citas": ["estado TEXT DEFAULT 'Pendiente'", "sala_id INTEGER REFERENCES salas(id)"],
+    "citas": ["estado TEXT DEFAULT 'Pendiente'", "sala_id INTEGER REFERENCES salas(id)", "token TEXT"],
     "odonto_registros": ["sesion_id INTEGER REFERENCES odonto_sesiones(id)"],
 }
-CAMPOS_PACIENTE = ["nombre", "cedula", "telefono", "nacimiento", "sexo", "direccion",
-                   "contacto_emergencia", "alergias", "motivo_consulta", "antecedentes",
-                   "medicamentos", "examen_clinico", "plan"]
+CAMPOS_PACIENTE = ["nombre", "cedula", "telefono", "correo", "nacimiento", "sexo", "direccion",
+                   "contacto_emergencia_nombre", "contacto_emergencia_telefono", "alergias", "motivo_consulta",
+                   "antecedentes", "medicamentos", "examen_clinico", "plan"]
 ACTIVOS = " AND COALESCE(p.archivado, 0) = 0"  # los pacientes archivados no aparecen en las listas
-CITAS_SQL = """SELECT c.*, p.nombre, p.telefono, p.estudiante_id, u.nombre AS estudiante_nombre, s.nombre AS sala
+CITAS_SQL = """SELECT c.*, p.nombre, p.telefono, p.correo, p.estudiante_id, u.nombre AS estudiante_nombre, s.nombre AS sala
                FROM citas c JOIN pacientes p ON p.id = c.paciente_id
                LEFT JOIN usuarios u ON u.id = p.estudiante_id LEFT JOIN salas s ON s.id = c.sala_id WHERE 1 = 1"""
 SESIONES_SQL = """SELECT s.*, p.nombre AS paciente, u.nombre AS autor, v.nombre AS revisor,
@@ -130,6 +139,7 @@ REPORTES_SQL = """SELECT r.*, s.nombre AS sala, u.nombre AS reporta, a.nombre AS
 app = Flask(__name__)
 app.secret_key = os.environ.get("DIENTECITO_SECRETO") or secrets.token_hex(16)
 app.config["MAX_CONTENT_LENGTH"] = 15 * 1024 * 1024  # fotos de hasta 15 MB
+app.config["SESSION_COOKIE_SAMESITE"] = "Lax"  # evita que otro sitio use la sesion para enviar formularios (CSRF)
 app.jinja_env.globals.update(ESTADOS_DIENTE=ESTADOS_DIENTE, ESTADOS_CITA=ESTADOS_CITA, SUPERIOR=SUPERIOR,
                              INFERIOR=INFERIOR, DEMO=DEMO, ROLES=ROLES, TIPOS_REPORTE=TIPOS_REPORTE,
                              ESTADO_SESION={"Abierta": "En edición", "Pendiente": "Por revisar",
@@ -145,6 +155,16 @@ def iniciar_db():
         for col in columnas:
             if col.split()[0] not in existentes:
                 con.execute(f"ALTER TABLE {tabla} ADD COLUMN {col}")
+    # El contacto de emergencia era un solo campo de texto; se separa en nombre y telefono
+    viejos_contacto = con.execute(
+        "SELECT id, contacto_emergencia FROM pacientes WHERE COALESCE(contacto_emergencia, '') != '' "
+        "AND COALESCE(contacto_emergencia_nombre, '') = '' AND COALESCE(contacto_emergencia_telefono, '') = ''").fetchall()
+    for pid, texto in viejos_contacto:
+        numero = re.search(r"\d[\d\s-]{6,}\d", texto)
+        telefono = re.sub(r"\D", "", numero.group()) if numero else ""
+        nombre = (texto[:numero.start()] + texto[numero.end():]).strip(" :-,") if numero else texto.strip()
+        con.execute("UPDATE pacientes SET contacto_emergencia_nombre = ?, contacto_emergencia_telefono = ? WHERE id = ?",
+                    (nombre, telefono, pid))
     # Registros de la version anterior (una foto por diente): cada uno pasa a ser una sesion con su foto
     viejos = con.execute("SELECT id, paciente_id, foto, descripcion, fecha, usuario_id, revision, observacion, "
                          "revisado_por FROM odonto_registros WHERE sesion_id IS NULL").fetchall()
@@ -245,6 +265,29 @@ def respaldo_diario():
         viejo.unlink()
 
 
+def enviar_correo(destino, asunto, cuerpo):
+    """Envia un correo por SMTP. Sin DIENTECITO_SMTP_HOST/USUARIO/CLAVE configuradas, no hace nada y devuelve False."""
+    if not (SMTP_HOST and SMTP_USUARIO and SMTP_CLAVE):
+        return False
+    mensaje = EmailMessage()
+    mensaje["Subject"], mensaje["From"], mensaje["To"] = asunto, SMTP_DESDE, destino
+    mensaje.set_content(cuerpo)
+    with smtplib.SMTP(SMTP_HOST, SMTP_PUERTO) as s:
+        s.starttls()
+        s.login(SMTP_USUARIO, SMTP_CLAVE)
+        s.send_message(mensaje)
+    return True
+
+
+def token_cita(cid):
+    """Token publico de una cita (se genera la primera vez que se necesita): da acceso sin cuenta al enlace del paciente."""
+    t = q("SELECT token FROM citas WHERE id = ?", (cid,), uno=True)["token"]
+    if not t:
+        t = secrets.token_urlsafe(24)
+        ejecutar("UPDATE citas SET token = ? WHERE id = ?", (t, cid))
+    return t
+
+
 def guardar_foto(archivo):
     """Guarda la foto si es una imagen real (JPG, PNG, WEBP o HEIC) y devuelve su nombre."""
     if not archivo or not archivo.filename:
@@ -309,7 +352,7 @@ def cargar_usuario():
     g.usuario = None
     if uid := session.get("uid"):
         g.usuario = q("SELECT * FROM usuarios WHERE id = ? AND activo = 1", (uid,), uno=True)
-    if g.usuario is None and request.endpoint not in ("entrar", "static"):
+    if g.usuario is None and request.endpoint not in ("entrar", "static", "cita_publica"):
         return redirect(url_for("entrar"))
 
 
@@ -384,12 +427,16 @@ def whatsapp(telefono, mensaje=""):
     return f"https://wa.me/{num}?text={quote(mensaje)}"
 
 
+def mensaje_recordatorio(cita):
+    enlace = url_for("cita_publica", token=token_cita(cita["id"]), _external=True)
+    return (f"Hola {cita['nombre']}, le saludamos de la Clínica Odontológica UAM. "
+            f"Le recordamos su cita el {fecha_larga(cita['fecha'])} a las {cita['hora']}. "
+            f"Confirme o cancele aquí: {enlace}")
+
+
 @app.template_global()
 def recordatorio(cita):
-    return whatsapp(cita["telefono"],
-                    f"Hola {cita['nombre']}, le saludamos de la Clínica Odontológica UAM. "
-                    f"Le recordamos su cita el {fecha_larga(cita['fecha'])} a las {cita['hora']}. "
-                    "¿Nos confirma su asistencia?")
+    return whatsapp(cita["telefono"], mensaje_recordatorio(cita))
 
 
 # ---------- acceso ----------
@@ -405,7 +452,7 @@ def entrar():
             anotar("Inicio de sesión", usuario_id=u["id"])
             return redirect(url_for("inicio"))
         anotar("Intento de acceso fallido", f"Usuario: {request.form.get('usuario', '')[:40]}")
-        flash("Usuario o clave incorrectos.", "error")
+        flash("Usuario o contraseña incorrectos. Revisa los datos e inténtalo de nuevo.", "error")
     return render_template("entrar.html")
 
 
@@ -795,6 +842,34 @@ def cita_estado(cid):
         ejecutar("UPDATE citas SET estado = ? WHERE id = ?", (request.form["estado"], cid))
         anotar(f"Cambió cita a «{request.form['estado']}»", f"{c['fecha']} {c['hora']}", c["paciente_id"])
     return regresar(url_for("citas"))
+
+
+@app.post("/citas/<int:cid>/recordar-correo")
+@solo("estudiante", "profesor")
+def cita_recordar_correo(cid):
+    """Envia al paciente el enlace publico de su cita por correo (requiere DIENTECITO_SMTP_* configuradas)."""
+    c = q(CITAS_SQL + " AND c.id = ?" + alcance(), (cid,), uno=True) or abort(404)
+    if not c["correo"]:
+        flash("Este paciente no tiene correo registrado.", "error")
+    elif enviar_correo(c["correo"], "Recordatorio de cita - Clínica Odontológica UAM", mensaje_recordatorio(c)):
+        anotar("Envió recordatorio de cita por correo", c["correo"], c["paciente_id"])
+        flash(f"Correo enviado a {c['correo']}.", "ok")
+    else:
+        flash("El servidor de correo no está configurado en este servidor (variables DIENTECITO_SMTP_*).", "aviso")
+    return regresar(url_for("citas"))
+
+
+@app.route("/c/<token>", methods=["GET", "POST"])
+def cita_publica(token):
+    """Pantalla publica, sin cuenta: el paciente ve su cita y puede confirmarla o cancelarla desde el enlace."""
+    c = q(CITAS_SQL + " AND c.token = ?", (token,), uno=True) or abort(404)
+    if request.method == "POST" and c["estado"] in ("Pendiente", "Confirmada") and request.form.get("estado") in ("Confirmada", "Cancelada"):
+        ejecutar("UPDATE citas SET estado = ? WHERE id = ?", (request.form["estado"], c["id"]))
+        anotar(f"El paciente marcó su cita como «{request.form['estado']}» desde el enlace",
+               f"{c['fecha']} {c['hora']}", c["paciente_id"])
+        flash("¡Gracias! Confirmamos su asistencia." if request.form["estado"] == "Confirmada" else "Su cita fue cancelada.", "ok")
+        return redirect(url_for("cita_publica", token=token))
+    return render_template("cita_publica.html", c=c)
 
 
 # ---------- salas y avisos a servicios ----------

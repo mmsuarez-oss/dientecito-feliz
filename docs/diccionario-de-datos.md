@@ -39,10 +39,13 @@ Expediente clínico del paciente.
 | nombre | TEXT | NN | Nombre completo |
 | cedula | TEXT | NN, Único | Cédula de identidad |
 | telefono | TEXT | | Teléfono o WhatsApp. Si tiene 8 dígitos se le antepone 505 |
+| correo | TEXT | | Correo del paciente. Si está, habilita el botón "Correo" para enviarle el recordatorio de cita |
 | nacimiento | TEXT | | Fecha de nacimiento; con ella se calcula la edad |
 | sexo | TEXT | | `Femenino`, `Masculino` o vacío |
 | direccion | TEXT | | Dirección de domicilio |
-| contacto_emergencia | TEXT | | Nombre y teléfono de un contacto |
+| contacto_emergencia_nombre | TEXT | | Nombre del contacto de emergencia |
+| contacto_emergencia_telefono | TEXT | | Teléfono del contacto de emergencia |
+| contacto_emergencia | TEXT | | *Obsoleto*: campo único usado antes de separar nombre y teléfono |
 | alergias | TEXT | | Alergias conocidas. Si tiene valor, se muestra una alerta en el expediente |
 | motivo_consulta | TEXT | | Motivo de consulta |
 | antecedentes | TEXT | | Antecedentes médicos |
@@ -66,6 +69,7 @@ Expediente clínico del paciente.
 | motivo | TEXT | | Motivo: valoración, profilaxis, control, etc. |
 | sala_id | INTEGER | FK → salas.id | Sala asignada (opcional) |
 | estado | TEXT | Por defecto `Pendiente` | `Pendiente`, `Confirmada`, `Atendida`, `No asistió` o `Cancelada` |
+| token | TEXT | | Código al azar que da acceso al enlace público de la cita (`/c/<token>`), sin necesidad de cuenta |
 | estudiante | TEXT | | *Obsoleto* (primera versión). El estudiante ahora se obtiene del paciente |
 
 **Reglas:** un paciente no puede tener dos citas activas el mismo día. Un estudiante no puede tener dos citas a la misma hora. Una sala no puede usarse dos veces a la misma hora.

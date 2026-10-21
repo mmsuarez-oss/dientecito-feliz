@@ -11,6 +11,7 @@
     <div class="tenue">
       Cédula {{ p.cedula }}{% if p.nacimiento %} · {{ p.nacimiento|edad }}{% endif %}{% if p.sexo %} · {{ p.sexo }}{% endif %}
       {% if p.telefono %} · Tel. <a href="tel:{{ p.telefono }}">{{ p.telefono }}</a>{% endif %}
+      {% if p.correo %} · <a href="mailto:{{ p.correo }}">{{ p.correo }}</a>{% endif %}
     </div>
     <div class="tenue">Estudiante: {{ estudiante.nombre if estudiante else 'sin asignar' }}</div>
     <div>
@@ -23,6 +24,7 @@
     {% if p.telefono %}<a class="btn" href="{{ whatsapp(p.telefono) }}" target="_blank" rel="noopener">WhatsApp</a>{% endif %}
     <a class="btn" href="{{ url_for('paciente_form', pid=p.id) }}">Editar datos</a>
     <a class="btn" href="{{ url_for('citas', paciente=p.id) }}">Agendar cita</a>
+    <button type="button" class="btn" data-imprimir>Imprimir / PDF</button>
     {% if profesor %}
     <form method="post" action="{{ url_for('aprobar', pid=p.id) }}">
       <button class="btn" name="aprobado" value="{{ 0 if p.aprobado else 1 }}">{{ 'Retirar aprobación' if p.aprobado else 'Aprobar paciente' }}</button>
@@ -53,12 +55,18 @@
 
 <section id="historia" class="seccion">
   <dl class="datos">
-    {% for campo, titulo in [('direccion', 'Dirección'), ('contacto_emergencia', 'Contacto de emergencia'),
+    {% for campo, titulo in [('direccion', 'Dirección'),
                              ('motivo_consulta', 'Motivo de consulta'), ('antecedentes', 'Antecedentes médicos'),
                              ('medicamentos', 'Medicamentos actuales'), ('examen_clinico', 'Examen clínico'),
                              ('plan', 'Diagnóstico y plan de tratamiento')] %}
       <dt>{{ titulo }}</dt><dd>{{ p[campo] or '—' }}</dd>
     {% endfor %}
+    <dt>Contacto de emergencia</dt>
+    <dd>
+      {% if p.contacto_emergencia_nombre or p.contacto_emergencia_telefono %}
+        {{ p.contacto_emergencia_nombre or '' }}{% if p.contacto_emergencia_telefono %}{% if p.contacto_emergencia_nombre %} · {% endif %}<a href="tel:{{ p.contacto_emergencia_telefono }}">{{ p.contacto_emergencia_telefono }}</a>{% endif %}
+      {% else %}—{% endif %}
+    </dd>
   </dl>
   <a class="btn" href="{{ url_for('paciente_form', pid=p.id) }}">Completar historia clínica</a>
 </section>

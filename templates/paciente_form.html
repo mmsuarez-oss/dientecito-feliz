@@ -10,12 +10,14 @@
       <label class="campo"><span>Nombre: *</span><input name="nombre" value="{{ p.nombre or '' }}" required autocomplete="off"></label>
       <label class="campo"><span>Cédula: *</span><input name="cedula" value="{{ p.cedula or '' }}" required autocomplete="off"></label>
       <label class="campo"><span>Teléfono:</span><input name="telefono" type="tel" value="{{ p.telefono or '' }}" inputmode="tel"></label>
+      <label class="campo"><span>Correo:</span><input name="correo" type="email" value="{{ p.correo or '' }}" autocomplete="off"></label>
       <label class="campo"><span>Nacimiento:</span><input name="nacimiento" type="date" value="{{ p.nacimiento or '' }}"></label>
       <label class="campo"><span>Sexo:</span>
         <select name="sexo">{% for s in ['', 'Femenino', 'Masculino'] %}<option {{ 'selected' if s == (p.sexo or '') }}>{{ s }}</option>{% endfor %}</select>
       </label>
       <label class="campo"><span>Dirección:</span><input name="direccion" value="{{ p.direccion or '' }}"></label>
-      <label class="campo"><span>Contacto emergencia:</span><input name="contacto_emergencia" value="{{ p.contacto_emergencia or '' }}"></label>
+      <label class="campo"><span>Contacto emergencia:</span><input name="contacto_emergencia_nombre" value="{{ p.contacto_emergencia_nombre or '' }}" placeholder="Nombre"></label>
+      <label class="campo"><span>Tel. de emergencia:</span><input name="contacto_emergencia_telefono" type="tel" value="{{ p.contacto_emergencia_telefono or '' }}" inputmode="tel"></label>
       {% if g.usuario.rol == 'profesor' %}
       <label class="campo"><span>Estudiante:</span>
         <select name="estudiante_id">

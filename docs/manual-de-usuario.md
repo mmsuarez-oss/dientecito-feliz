@@ -76,7 +76,7 @@ Solo puede haber un odontograma en edición por paciente. El **Historial de odon
    - dos citas suyas a la misma hora;
    - una sala ocupada a esa hora.
 3. Si la sala tiene un reporte pendiente, el sistema le avisa.
-4. **Recordar por WhatsApp** abre WhatsApp con el mensaje de recordatorio ya escrito. Cuando el paciente responda, cambie el estado de la cita a **Confirmada**.
+4. **WhatsApp** abre WhatsApp con el mensaje de recordatorio ya escrito, que incluye un enlace a la cita. Si el paciente tiene correo registrado, también aparece el botón **Correo**, que le envía el mismo recordatorio por correo. En ambos casos, el enlace deja que el paciente mismo confirme o cancele su cita sin necesidad de cuenta; el estado se actualiza automáticamente.
 5. Después de la cita, marque **Atendida** o **No asistió**.
 
 ### Reportar una sala
