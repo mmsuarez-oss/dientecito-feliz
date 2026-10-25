@@ -31,9 +31,9 @@ Se aprueba la versión si los **31 casos automáticos** terminan en OK y las pru
 | Código | Caso | Pasos / datos | Resultado esperado |
 |---|---|---|---|
 | CP-02 | Páginas sin sesión | Abrir `/`, `/pacientes`, `/citas`, `/avisos` y `/bitacora` sin entrar | Redirige a la pantalla de entrada |
-| CP-03 | Clave incorrecta | Usuario `profesor` con clave errónea | Mensaje "Usuario o clave incorrectos", y el intento queda en la bitácora |
+| CP-03 | Clave incorrecta | CIF `profesor` con clave errónea | Mensaje "CIF o contraseña incorrectos", y el intento queda en la bitácora |
 | CP-04 | Pestañas por rol | Cada rol abre las páginas propias y las ajenas | Las propias responden; las ajenas dan error 403 |
-| CP-05 | Crear usuarios | Usuario válido, usuario con espacio y clave de 3 caracteres | Crea el válido y rechaza los otros dos con su mensaje |
+| CP-05 | Crear usuarios | CIF válido, CIF con espacio y clave de 3 caracteres | Crea el válido y rechaza los otros dos con su mensaje |
 
 ### Pacientes y expediente
 | Código | Caso | Pasos / datos | Resultado esperado |

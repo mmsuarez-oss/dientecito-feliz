@@ -107,9 +107,9 @@ with caso("CP-04", "Cada rol ve solo sus pestañas (403 en las ajenas)"):
                           (serv, ["/avisos", "/salas", "/inventario", "/cuenta"])]:
         for ruta in permitidas:
             ok(c.get(ruta))
-with caso("CP-05", "El profesor crea usuarios; se validan nombre de usuario y clave"):
+with caso("CP-05", "El profesor crea usuarios; se validan el CIF y la clave"):
     ok(prof.post("/usuarios", data={"nombre": "Ana Ruiz", "usuario": "Ana.Ruiz", "rol": "estudiante", "clave": "abc123"},
-                 follow_redirects=True), "Usuario ana.ruiz creado")
+                 follow_redirects=True), "Cuenta ana.ruiz creada")
     ok(prof.post("/usuarios", data={"nombre": "X", "usuario": "a b", "rol": "estudiante", "clave": "abc123"},
                  follow_redirects=True), "sin espacios")
     ok(prof.post("/usuarios", data={"nombre": "X", "usuario": "corto", "rol": "estudiante", "clave": "123"},
@@ -160,7 +160,9 @@ with caso("CP-12", "Con la foto se habilita el odontograma digital y se guardan 
         assert est.post(f"/sesiones/{sid}/diente", json={"diente": diente, "estado": estado}).json == {"ok": True}
     assert est.post(f"/sesiones/{sid}/diente", json={"diente": 99, "estado": "Caries"}).status_code == 400
     assert sql("SELECT COUNT(*) FROM odonto_registros WHERE sesion_id = ?", (sid,)) == 2  # un registro por diente
-    assert sql("SELECT estado FROM odontograma WHERE paciente_id = ? AND diente = 16", (pid,)) == "Caries"
+    assert sql("SELECT estado FROM odonto_registros WHERE paciente_id = ? AND diente = 16", (pid,)) == "Caries"
+    with m.app.test_request_context():  # el estado de cada diente sale del ultimo registro
+        assert m.dientes_de(pid) == {16: "Caries", 26: "Obturado"}
     ok(est.post(f"/pacientes/{pid}/sesiones", data={"foto": foto()}, follow_redirects=True), "Ya hay un odontograma en curso")
 with caso("CP-13", "Las fotos solo las ven el estudiante dueño y el docente"):
     assert ana.get(f"/fotos/{archivo_foto}").status_code == 404

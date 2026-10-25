@@ -9,7 +9,6 @@ Las fechas se guardan como texto ISO (`AAAA-MM-DD` o `AAAA-MM-DD HH:MM`) en hora
 
 ```
 usuarios ─┬─< pacientes (estudiante_id) ─┬─< citas >── salas ──< reportes >── usuarios
-          │                              ├─< odontograma
           ├─< odonto_sesiones >──────────┤   (una sesión = foto presencial + odontograma digital)
           │        └─< odonto_registros  ├─< tratamientos
           └─< bitacora >─────────────────┘
@@ -74,15 +73,6 @@ Expediente clínico del paciente.
 
 **Reglas:** un paciente no puede tener dos citas activas el mismo día. Un estudiante no puede tener dos citas a la misma hora. Una sala no puede usarse dos veces a la misma hora.
 
-## odontograma
-Estado **actual** de cada diente. Solo cambia al marcar dientes dentro de una sesión que ya tiene su foto presencial.
-
-| Campo | Tipo | Restricciones | Descripción |
-|---|---|---|---|
-| paciente_id | INTEGER | PK, FK → pacientes.id | Paciente |
-| diente | INTEGER | PK | Número FDI (11–18, 21–28, 31–38, 41–48) |
-| estado | TEXT | | `Sano`, `Caries`, `Obturado`, `Corona`, `Endodoncia` o `Extraido` |
-
 ## odonto_sesiones
 Cada vez que se llena un odontograma. **Primero se sube la foto del odontograma presencial** (obligatoria). Solo con una sesión abierta se habilita el odontograma digital.
 
@@ -103,7 +93,7 @@ Cada vez que se llena un odontograma. **Primero se sube la foto del odontograma 
 **Reglas:** un paciente solo puede tener una sesión en edición (`Abierta` o `Corregir`) a la vez. Una sesión `Pendiente` o `Aprobado` no se puede modificar.
 
 ## odonto_registros
-Dientes marcados en el odontograma digital de cada sesión.
+Dientes marcados en el odontograma digital de cada sesión. El estado **actual** de un diente es el de su registro más reciente.
 
 | Campo | Tipo | Restricciones | Descripción |
 |---|---|---|---|

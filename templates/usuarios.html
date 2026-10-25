@@ -6,7 +6,7 @@
     <fieldset>
       <legend>Nuevo usuario</legend>
       <label class="campo"><span>Nombre:</span><input name="nombre" required></label>
-      <label class="campo"><span>Usuario:</span><input name="usuario" required autocapitalize="none" autocomplete="off" pattern="[a-zA-Z0-9._\-]{3,30}" title="De 3 a 30 letras o números, sin espacios"></label>
+      <label class="campo"><span>CIF:</span><input name="usuario" required autocapitalize="none" autocomplete="off" pattern="[a-zA-Z0-9._\-]{3,30}" title="De 3 a 30 letras o números, sin espacios"></label>
       <label class="campo"><span>Rol:</span>
         <select name="rol">{% for clave, nombre in ROLES.items() %}<option value="{{ clave }}">{{ nombre }}</option>{% endfor %}</select>
       </label>
@@ -18,7 +18,7 @@
 
   <div class="tabla">
     <table>
-      <thead><tr><th>Nombre</th><th>Usuario</th><th>Rol</th><th class="num">Pacientes</th><th>Estado</th><th>Restablecer clave</th><th></th></tr></thead>
+      <thead><tr><th>Nombre</th><th>CIF</th><th>Rol</th><th class="num">Pacientes</th><th>Estado</th><th>Restablecer clave</th><th></th></tr></thead>
       <tbody>
       {% for u in usuarios %}
         <tr>

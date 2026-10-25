@@ -1,29 +1,57 @@
 {% extends 'base.html' %}
 {% block titulo %}Entrar{% endblock %}
+{% block cabeza %}
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Onest:wght@400;500;600;700&display=swap">
+{% endblock %}
 {% block publico %}
 <main class="entrar">
-  <img class="logo-entrar" src="{{ url_for('static', filename='logo-uam.png') }}" alt="Universidad Americana (UAM)" width="180" height="127">
-  <form method="post" class="tarjeta-entrar">
-    <div class="cuerpo-entrar">
-      <div class="sello"><img src="{{ url_for('static', filename='icono.svg') }}" alt=""><span>Dientecito Feliz<br>Clínica Odontológica</span></div>
-      {% for tipo, texto in get_flashed_messages(with_categories=true) %}<div class="mensaje {{ tipo }}">{{ texto }}</div>{% endfor %}
-      <input name="usuario" placeholder="Digite su usuario" aria-label="Usuario" required autofocus autocapitalize="none" autocomplete="username">
-      <label class="con-ojo">
-        <input name="clave" type="password" placeholder="Digite su contraseña" aria-label="Contraseña" required autocomplete="current-password">
+  <form method="post" class="panel-entrar">
+    <div class="marca">
+      <svg aria-hidden="true" viewBox="0 0 360 190" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round">
+        <defs>
+          <path id="diente" d="M7 3c-2.2 0-4 1.8-4 4.2 0 2.3.8 3.8 1.4 5.6.6 1.9.7 4 1.3 6.4.4 1.5 1 2.8 2 2.8 1.6 0 1.6-5 3.3-5s1.7 5 3.3 5c1 0 1.6-1.3 2-2.8.6-2.4.7-4.5 1.3-6.4.6-1.8 1.4-3.3 1.4-5.6C21 4.8 19.2 3 17 3c-1.9 0-2.9 1-5 1S8.9 3 7 3z"/>
+        </defs>
+        {% for grados in range(-78, 79, 12) %}
+        <use href="#diente" transform="rotate({{ grados }} 180 170) translate(171 10) scale(0.75)"/>
+        {% endfor %}
+      </svg>
+      <div class="marca-logos">
+        <img src="{{ url_for('static', filename='logo-uam.png') }}" alt="Universidad Americana (UAM)" width="510" height="213">
+        <p>Facultad de Odontología</p>
+      </div>
+    </div>
+
+    <h1>Iniciar sesión</h1>
+
+    {% for tipo, texto in get_flashed_messages(with_categories=true) %}<div class="mensaje {{ tipo }}">{{ texto }}</div>{% endfor %}
+
+    <div class="campo">
+      <label for="usuario">CIF</label>
+      <div class="caja">
+        <input id="usuario" name="usuario" required autofocus autocapitalize="none" autocomplete="username">
+      </div>
+    </div>
+
+    <div class="campo">
+      <label for="clave">Contraseña</label>
+      <div class="caja con-boton">
+        <input id="clave" name="clave" type="password" required autocomplete="current-password">
         <button type="button" class="ver-clave" data-ver-clave aria-label="Mostrar contraseña" aria-pressed="false">
-          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>
+          <svg class="ojo-abierto" aria-hidden="true" viewBox="0 0 24 24"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>
+          <svg class="ojo-cerrado" aria-hidden="true" viewBox="0 0 24 24"><path d="M3 3l18 18"/><path d="M10.6 5.1A10.8 10.8 0 0 1 12 5c6.5 0 10 7 10 7a17 17 0 0 1-3.2 4.2M6.6 6.6C3.7 8.4 2 12 2 12s3.5 7 10 7c1.8 0 3.4-.5 4.7-1.3"/><path d="M9.9 9.9a3 3 0 0 0 4.2 4.2"/></svg>
         </button>
-      </label>
+      </div>
     </div>
-    <div class="pie-entrar">
-      <button class="ingresar">Ingresar</button>
-      <details class="olvido">
-        <summary>He olvidado mi contraseña</summary>
-        <p>Pídele a tu profesor que te asigne una nueva contraseña. Después puedes cambiarla en "Mi cuenta".</p>
-      </details>
-      {% if DEMO %}<p class="nota-entrar">Cuentas de prueba: estudiante, profesor o servicios, con la contraseña uam2026.</p>
-      {% else %}<p class="nota-entrar">Clínica Odontológica UAM</p>{% endif %}
-    </div>
+
+    <button class="ingresar">Iniciar sesión</button>
+
+    <details class="olvido">
+      <summary>He olvidado mi contraseña</summary>
+      <p>Pídele a tu profesor que te asigne una nueva contraseña. Después puedes cambiarla en "Mi cuenta".</p>
+    </details>
+    {% if DEMO %}<p class="nota-entrar">Cuentas de prueba: estudiante, profesor o servicios, con la contraseña uam2026.</p>{% endif %}
   </form>
 </main>
 {% endblock %}
