@@ -9,7 +9,7 @@ Sistema de gestión para la **Clínica Odontológica UAM**. Es una aplicación w
 | **Profesor** | Ver a todos los pacientes. **Revisar cada odontograma comparando la foto presencial con el digital** y aprobarlo o pedir corrección. Tiene acceso a todas las fotos. Aprobar pacientes. Administrar usuarios, tarifario e inventario. |
 | **Servicios** | Recibir los **avisos de salas** que necesitan reparación o limpieza y marcarlos como atendidos o resueltos. Administrar salas e inventario. |
 
-Cuentas de ejemplo que se crean la primera vez: `estudiante`, `profesor` y `servicios`, todas con la clave `uam2026` (se puede cambiar con la variable de entorno `DIENTECITO_CLAVE`). El profesor crea las demás cuentas en la pestaña *Usuarios*.
+Cuentas de ejemplo que se crean la primera vez (el CIF es el identificador de acceso): `00000001` (profesor), `00000002` (estudiante) y `00000003` (servicios), todas con la clave `uam2026` (se puede cambiar con la variable de entorno `DIENTECITO_CLAVE`). El profesor crea las demás cuentas en la pestaña *Usuarios*.
 
 ## Recordatorios de cita por correo
 

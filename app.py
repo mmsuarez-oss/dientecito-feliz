@@ -41,6 +41,10 @@ SMTP_CLAVE = os.environ.get("DIENTECITO_SMTP_CLAVE")
 SMTP_DESDE = os.environ.get("DIENTECITO_SMTP_DESDE", SMTP_USUARIO)
 
 ROLES = {"estudiante": "Estudiante", "profesor": "Profesor", "servicios": "Servicios"}
+# Cuentas de ejemplo de la primera vez: CIF, nombre y rol
+CUENTAS_EJEMPLO = [("00000001", "Profesor de prueba", "profesor"),
+                   ("00000002", "Estudiante de prueba", "estudiante"),
+                   ("00000003", "Servicios generales", "servicios")]
 MENUS = {
     "estudiante": [("inicio", "Inicio"), ("pacientes", "Mis pacientes"), ("citas", "Citas"), ("salas", "Salas")],
     "profesor": [("inicio", "Inicio"), ("pacientes", "Pacientes"), ("citas", "Citas"), ("salas", "Salas"),
@@ -170,14 +174,15 @@ def iniciar_db():
                           "observacion, revisado_por) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
                           (pid, foto, nota, fecha, uid, revision or "Pendiente", fecha, observacion, revisor)).lastrowid
         con.execute("UPDATE odonto_registros SET sesion_id = ? WHERE id = ?", (sid, rid))
+    for cif, _, rol in CUENTAS_EJEMPLO:  # antes las cuentas de ejemplo se llamaban como su rol
+        con.execute("UPDATE usuarios SET usuario = ? WHERE usuario = ? AND rol = ? "
+                    "AND NOT EXISTS (SELECT 1 FROM usuarios WHERE usuario = ?)", (cif, rol, rol, cif))
     if not con.execute("SELECT 1 FROM usuarios").fetchone():
-        for usuario, nombre, rol in [("profesor", "Profesor de prueba", "profesor"),
-                                     ("estudiante", "Estudiante de prueba", "estudiante"),
-                                     ("servicios", "Servicios generales", "servicios")]:
+        for cif, nombre, rol in CUENTAS_EJEMPLO:
             con.execute("INSERT INTO usuarios(usuario, nombre, rol, clave) VALUES (?, ?, ?, ?)",
-                        (usuario, nombre, rol, generate_password_hash(CLAVE_INICIAL)))
+                        (cif, nombre, rol, generate_password_hash(CLAVE_INICIAL)))
         # Los pacientes de versiones anteriores pasan al estudiante de ejemplo
-        con.execute("UPDATE pacientes SET estudiante_id = (SELECT id FROM usuarios WHERE usuario = 'estudiante') "
+        con.execute("UPDATE pacientes SET estudiante_id = (SELECT id FROM usuarios WHERE usuario = '00000002') "
                     "WHERE estudiante_id IS NULL")
     if not con.execute("SELECT 1 FROM salas").fetchone():
         con.executemany("INSERT INTO salas(nombre) VALUES (?)", [("Sala 1",), ("Sala 2",), ("Sala 3",)])

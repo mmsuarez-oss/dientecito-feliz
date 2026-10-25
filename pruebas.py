@@ -93,9 +93,9 @@ with caso("CP-02", "Sin sesión, toda página redirige a la pantalla de entrada"
     for ruta in ("/", "/pacientes", "/citas", "/avisos", "/bitacora"):
         assert anonimo.get(ruta).location.endswith("/entrar"), ruta
 with caso("CP-03", "Clave incorrecta es rechazada y queda en la bitácora"):
-    ok(anonimo.post("/entrar", data={"usuario": "profesor", "clave": "mala"}, follow_redirects=True), "incorrectos")
+    ok(anonimo.post("/entrar", data={"usuario": "00000001", "clave": "mala"}, follow_redirects=True), "incorrectos")
     assert sql("SELECT COUNT(*) FROM bitacora WHERE accion = 'Intento de acceso fallido'") == 1
-prof, est, serv = cliente("profesor"), cliente("estudiante"), cliente("servicios")
+prof, est, serv = cliente("00000001"), cliente("00000002"), cliente("00000003")
 with caso("CP-04", "Cada rol ve solo sus pestañas (403 en las ajenas)"):
     for c, prohibidas in [(est, ["/usuarios", "/tarifario", "/inventario", "/avisos", "/bitacora", "/respaldo"]),
                           (serv, ["/pacientes", "/citas", "/usuarios", "/bitacora"]),
