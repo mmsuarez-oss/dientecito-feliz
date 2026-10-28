@@ -1,4 +1,4 @@
-"""Dientecito Feliz - Clinica Odontologica UAM
+"""Clínicas Odontológicas - Clinica Odontologica UAM
 Aplicacion web (Flask + SQLite) para computadora y telefono.
 Tres interfaces segun el rol del usuario: estudiante, profesor y servicios.
 
@@ -40,16 +40,23 @@ SMTP_USUARIO = os.environ.get("DIENTECITO_SMTP_USUARIO")
 SMTP_CLAVE = os.environ.get("DIENTECITO_SMTP_CLAVE")
 SMTP_DESDE = os.environ.get("DIENTECITO_SMTP_DESDE", SMTP_USUARIO)
 
-ROLES = {"estudiante": "Estudiante", "profesor": "Profesor", "servicios": "Servicios"}
-# Cuentas de ejemplo de la primera vez: CIF, nombre y rol
-CUENTAS_EJEMPLO = [("00000001", "Profesor de prueba", "profesor"),
-                   ("00000002", "Estudiante de prueba", "estudiante"),
-                   ("00000003", "Servicios generales", "servicios")]
+ROLES = {"estudiante": "Estudiante", "profesor": "Profesor", "servicios": "Servicios", "admin": "Administrador"}
+# Cuentas de ejemplo (datos ficticios): dos por cada rol y una de administracion
+CUENTAS_EJEMPLO = [("00000001", "Dra. Grace Mendoza", "profesor"),
+                   ("00000002", "Grace Alvarado", "estudiante"),
+                   ("00000003", "Gloria Téllez", "servicios"),
+                   ("00000004", "Dr. Gustavo Rivas", "profesor"),
+                   ("00000005", "Gabriel Espinoza", "estudiante"),
+                   ("00000006", "Germán Ortiz", "servicios"),
+                   ("00000007", "Gina Saavedra", "admin")]
 MENUS = {
-    "estudiante": [("inicio", "Inicio"), ("pacientes", "Mis pacientes"), ("citas", "Citas"), ("salas", "Salas")],
+    "estudiante": [("inicio", "Inicio"), ("pacientes", "Mis pacientes"), ("citas", "Mis citas"), ("salas", "Salas")],
+    # El profesor solo revisa: no registra pacientes, citas ni tratamientos
     "profesor": [("inicio", "Inicio"), ("pacientes", "Pacientes"), ("citas", "Citas"), ("salas", "Salas"),
-                 ("tarifario", "Tarifario"), ("usuarios", "Usuarios"), ("bitacora", "Bitácora")],
+                 ("bitacora", "Bitácora")],
     "servicios": [("avisos", "Avisos"), ("salas", "Salas"), ("inventario", "Inventario")],
+    "admin": [("usuarios", "Usuarios"), ("pacientes", "Pacientes"), ("citas", "Citas"), ("salas", "Salas"),
+              ("tarifario", "Tarifario"), ("inventario", "Inventario"), ("bitacora", "Bitácora")],
 }
 ESTADOS_DIENTE = {"Sano": "#ffffff", "Caries": "#c0504d", "Obturado": "#4f81bd",
                   "Corona": "#c9a94a", "Endodoncia": "#8064a2", "Extraido": "#a5a5a5"}
@@ -103,6 +110,12 @@ CREATE TABLE IF NOT EXISTS reportes(
     tipo TEXT NOT NULL, descripcion TEXT, estado TEXT DEFAULT 'Pendiente',
     reportado_por INTEGER REFERENCES usuarios(id), fecha TEXT NOT NULL,
     atendido_por INTEGER REFERENCES usuarios(id), actualizado TEXT);
+CREATE TABLE IF NOT EXISTS asignaciones(
+    id INTEGER PRIMARY KEY,
+    paciente_id INTEGER NOT NULL REFERENCES pacientes(id) ON DELETE CASCADE,
+    estudiante_id INTEGER REFERENCES usuarios(id),
+    desde TEXT NOT NULL, hasta TEXT, resumen TEXT);
+CREATE INDEX IF NOT EXISTS asignaciones_paciente ON asignaciones(paciente_id);
 CREATE TABLE IF NOT EXISTS bitacora(
     id INTEGER PRIMARY KEY, fecha TEXT NOT NULL, usuario_id INTEGER, accion TEXT NOT NULL,
     detalle TEXT, paciente_id INTEGER);
@@ -122,7 +135,8 @@ CAMPOS_PACIENTE = ["nombre", "cedula", "telefono", "correo", "nacimiento", "sexo
                    "contacto_emergencia_nombre", "contacto_emergencia_telefono", "alergias", "motivo_consulta",
                    "antecedentes", "medicamentos", "examen_clinico", "plan"]
 ACTIVOS = " AND COALESCE(p.archivado, 0) = 0"  # los pacientes archivados no aparecen en las listas
-CITAS_SQL = """SELECT c.*, p.nombre, p.telefono, p.correo, p.estudiante_id, u.nombre AS estudiante_nombre, s.nombre AS sala
+CITAS_SQL = """SELECT c.*, p.nombre, p.telefono, p.correo, p.motivo_consulta, p.estudiante_id,
+                      u.nombre AS estudiante_nombre, s.nombre AS sala
                FROM citas c JOIN pacientes p ON p.id = c.paciente_id
                LEFT JOIN usuarios u ON u.id = p.estudiante_id LEFT JOIN salas s ON s.id = c.sala_id WHERE 1 = 1"""
 SESIONES_SQL = """SELECT s.*, p.nombre AS paciente, u.nombre AS autor, v.nombre AS revisor,
@@ -131,6 +145,8 @@ SESIONES_SQL = """SELECT s.*, p.nombre AS paciente, u.nombre AS autor, v.nombre 
                   FROM odonto_sesiones s JOIN pacientes p ON p.id = s.paciente_id
                   LEFT JOIN usuarios u ON u.id = s.usuario_id LEFT JOIN usuarios v ON v.id = s.revisado_por
                   WHERE 1 = 1"""
+ASIGNACIONES_SQL = """SELECT a.*, u.nombre AS estudiante FROM asignaciones a
+                      LEFT JOIN usuarios u ON u.id = a.estudiante_id"""
 BITACORA_SQL = """SELECT b.*, u.nombre AS usuario, p.nombre AS paciente FROM bitacora b
                   LEFT JOIN usuarios u ON u.id = b.usuario_id LEFT JOIN pacientes p ON p.id = b.paciente_id"""
 REPORTES_SQL = """SELECT r.*, s.nombre AS sala, u.nombre AS reporta, a.nombre AS atiende
@@ -145,7 +161,6 @@ app.jinja_env.globals.update(ESTADOS_DIENTE=ESTADOS_DIENTE, ESTADOS_CITA=ESTADOS
                              INFERIOR=INFERIOR, DEMO=DEMO, ROLES=ROLES, TIPOS_REPORTE=TIPOS_REPORTE,
                              ESTADO_SESION={"Abierta": "En edición", "Pendiente": "Por revisar",
                                             "Aprobado": "Aprobado", "Corregir": "Corregir"})
-
 
 # ---------- base de datos ----------
 def iniciar_db():
@@ -184,11 +199,15 @@ def iniciar_db():
         # Los pacientes de versiones anteriores pasan al estudiante de ejemplo
         con.execute("UPDATE pacientes SET estudiante_id = (SELECT id FROM usuarios WHERE usuario = '00000002') "
                     "WHERE estudiante_id IS NULL")
+    # Los pacientes que ya existian estrenan su historial de trabajo con la asignacion actual
+    con.execute("INSERT INTO asignaciones(paciente_id, estudiante_id, desde) SELECT id, estudiante_id, "
+                "COALESCE((SELECT MIN(fecha) FROM bitacora WHERE paciente_id = pacientes.id), date('now')) "
+                "FROM pacientes WHERE estudiante_id IS NOT NULL "
+                "AND NOT EXISTS (SELECT 1 FROM asignaciones a WHERE a.paciente_id = pacientes.id)")
     if not con.execute("SELECT 1 FROM salas").fetchone():
         con.executemany("INSERT INTO salas(nombre) VALUES (?)", [("Sala 1",), ("Sala 2",), ("Sala 3",)])
     con.commit()
     con.close()
-
 
 def db():
     if "db" not in g:
@@ -197,35 +216,28 @@ def db():
         g.db.execute("PRAGMA foreign_keys = ON")
     return g.db
 
-
 @app.teardown_appcontext
 def cerrar_db(_):
     if (con := g.pop("db", None)) is not None:
         con.close()
 
-
 def q(sql, args=(), uno=False):
     cur = db().execute(sql, args)
     return cur.fetchone() if uno else cur.fetchall()
-
 
 def ejecutar(sql, args=()):
     with db() as con:
         return con.execute(sql, args).lastrowid
 
-
 def ahora():
     return datetime.now(NICARAGUA)
-
 
 def hoy():
     return ahora().date()
 
-
 def momento():
     """Fecha y hora con la que se guardan los registros."""
     return ahora().strftime("%Y-%m-%d %H:%M")
-
 
 def numero(texto):
     try:
@@ -233,15 +245,12 @@ def numero(texto):
     except ValueError:
         return 0.0
 
-
 def volver(pid, seccion):
     return redirect(url_for("expediente", pid=pid, _anchor=seccion))
-
 
 def regresar(defecto):
     destino = request.form.get("volver", "")
     return redirect(destino if destino.startswith("/") and not destino.startswith("//") else defecto)
-
 
 def anotar(accion, detalle="", paciente_id=None, usuario_id=None):
     """Deja constancia en la bitacora de quien hizo que y cuando."""
@@ -250,7 +259,6 @@ def anotar(accion, detalle="", paciente_id=None, usuario_id=None):
     ejecutar("INSERT INTO bitacora(fecha, usuario_id, accion, detalle, paciente_id) VALUES (?, ?, ?, ?, ?)",
              (ahora().strftime("%Y-%m-%d %H:%M:%S"), usuario_id, accion, detalle, paciente_id))
 
-
 def copiar_db(destino):
     """Copia consistente de la base de datos aunque este en uso (API de respaldo de SQLite)."""
     origen, copia = sqlite3.connect(DB), sqlite3.connect(destino)
@@ -258,7 +266,6 @@ def copiar_db(destino):
         origen.backup(copia)
     copia.close()
     origen.close()
-
 
 def respaldo_diario():
     destino = RESPALDOS / f"dientecito-{hoy().isoformat()}.db"
@@ -270,7 +277,6 @@ def respaldo_diario():
     temporal.replace(destino)
     for viejo in sorted(RESPALDOS.glob("dientecito-*.db"))[:-DIAS_RESPALDO]:
         viejo.unlink()
-
 
 def enviar_correo(destino, asunto, cuerpo):
     """Envia un correo por SMTP. Sin DIENTECITO_SMTP_HOST/USUARIO/CLAVE configuradas, no hace nada y devuelve False."""
@@ -285,7 +291,6 @@ def enviar_correo(destino, asunto, cuerpo):
         s.send_message(mensaje)
     return True
 
-
 def token_cita(cid):
     """Token publico de una cita (se genera la primera vez que se necesita): da acceso sin cuenta al enlace del paciente."""
     t = q("SELECT token FROM citas WHERE id = ?", (cid,), uno=True)["token"]
@@ -293,7 +298,6 @@ def token_cita(cid):
         t = secrets.token_urlsafe(24)
         ejecutar("UPDATE citas SET token = ? WHERE id = ?", (t, cid))
     return t
-
 
 def guardar_foto(archivo):
     """Guarda la foto si es una imagen real (JPG, PNG, WEBP o HEIC) y devuelve su nombre."""
@@ -316,11 +320,9 @@ def guardar_foto(archivo):
     archivo.save(FOTOS / nombre)
     return nombre
 
-
 # ---------- usuarios y permisos ----------
 def es(rol):
     return g.usuario["rol"] == rol
-
 
 def solo(*roles):
     def decorador(vista):
@@ -332,16 +334,13 @@ def solo(*roles):
         return envuelta
     return decorador
 
-
 def alcance(alias="p"):
     """Filtro SQL: cada estudiante solo ve sus propios pacientes."""
     return f" AND {alias}.estudiante_id = {int(g.usuario['id'])}" if es("estudiante") else ""
 
-
 def paciente_o_404(pid):
     extra = ACTIVOS if es("estudiante") else ""  # el profesor puede abrir archivados para restaurarlos
     return q("SELECT p.* FROM pacientes p WHERE p.id = ?" + alcance() + extra, (pid,), uno=True) or abort(404)
-
 
 def dientes_de(pid):
     """Estado actual de cada diente: el ultimo marcado en el odontograma digital."""
@@ -349,16 +348,13 @@ def dientes_de(pid):
                      AND id = (SELECT MAX(id) FROM odonto_registros
                                WHERE paciente_id = r.paciente_id AND diente = r.diente)""", (pid,)))
 
-
 def estudiantes():
     return q("SELECT id, nombre FROM usuarios WHERE rol = 'estudiante' AND activo = 1 ORDER BY nombre")
-
 
 def salas_con_estado():
     return q("""SELECT s.*, (SELECT GROUP_CONCAT(DISTINCT r.tipo) FROM reportes r
                              WHERE r.sala_id = s.id AND r.estado != 'Resuelto') AS pendiente
                 FROM salas s ORDER BY s.nombre""")
-
 
 @app.before_request
 def cargar_usuario():
@@ -369,7 +365,6 @@ def cargar_usuario():
     if g.usuario is None and request.endpoint not in ("entrar", "static", "cita_publica"):
         return redirect(url_for("entrar"))
 
-
 @app.context_processor
 def menu_y_avisos():
     if not g.get("usuario"):
@@ -377,6 +372,8 @@ def menu_y_avisos():
     contadores = {}
     if es("servicios"):
         contadores["avisos"] = q("SELECT COUNT(*) FROM reportes WHERE estado != 'Resuelto'", uno=True)[0]
+    elif es("admin"):
+        pass
     elif es("profesor"):
         contadores["inicio"] = q("SELECT (SELECT COUNT(*) FROM odonto_sesiones s JOIN pacientes p ON p.id = s.paciente_id "
                                  "WHERE s.estado = 'Pendiente'" + ACTIVOS + ") + (SELECT COUNT(*) FROM pacientes p "
@@ -386,12 +383,10 @@ def menu_y_avisos():
                                  "WHERE s.estado = 'Corregir'" + alcance() + ACTIVOS, uno=True)[0]
     return {"menu": MENUS[g.usuario["rol"]], "contadores": contadores}
 
-
 @app.errorhandler(413)
 def foto_muy_grande(_):
     flash("La foto es demasiado grande (máximo 15 MB).", "error")
     return redirect(request.referrer or url_for("inicio"))
-
 
 # ---------- formato para las plantillas ----------
 @app.template_filter("fecha")
@@ -406,7 +401,6 @@ def fecha_corta(iso):
         return "Mañana"
     return f"{DIAS[d.weekday()][:3]} {d.day:02d}/{d.month:02d}/{d.year}"
 
-
 @app.template_filter("fecha_larga")
 def fecha_larga(iso):
     try:
@@ -415,11 +409,9 @@ def fecha_larga(iso):
         return iso or ""
     return f"{DIAS[d.weekday()]} {d.day} de {MESES[d.month - 1]}"
 
-
 @app.template_filter("dinero")
 def dinero(valor):
     return f"C$ {valor or 0:,.2f}"
-
 
 @app.template_filter("edad")
 def edad(nacimiento):
@@ -430,7 +422,6 @@ def edad(nacimiento):
     h = hoy()
     return f"{h.year - n.year - ((h.month, h.day) < (n.month, n.day))} años"
 
-
 @app.template_global()
 def whatsapp(telefono, mensaje=""):
     num = re.sub(r"\D", "", telefono or "")
@@ -440,18 +431,15 @@ def whatsapp(telefono, mensaje=""):
         num = "505" + num
     return f"https://wa.me/{num}?text={quote(mensaje)}"
 
-
 def mensaje_recordatorio(cita):
     enlace = url_for("cita_publica", token=token_cita(cita["id"]), _external=True)
     return (f"Hola {cita['nombre']}, le saludamos de la Clínica Odontológica UAM. "
             f"Le recordamos su cita el {fecha_larga(cita['fecha'])} a las {cita['hora']}. "
             f"Confirme o cancele aquí: {enlace}")
 
-
 @app.template_global()
 def recordatorio(cita):
     return whatsapp(cita["telefono"], mensaje_recordatorio(cita))
-
 
 # ---------- acceso ----------
 @app.route("/entrar", methods=["GET", "POST"])
@@ -469,12 +457,10 @@ def entrar():
         flash("CIF o contraseña incorrectos. Revisa los datos e inténtalo de nuevo.", "error")
     return render_template("entrar.html")
 
-
 @app.route("/salir")
 def salir():
     session.clear()
     return redirect(url_for("entrar"))
-
 
 @app.route("/cuenta", methods=["GET", "POST"])
 def cuenta():
@@ -493,12 +479,13 @@ def cuenta():
         return redirect(url_for("cuenta"))
     return render_template("cuenta.html")
 
-
 # ---------- inicio ----------
 @app.route("/")
 def inicio():
     if es("servicios"):
         return redirect(url_for("avisos"))
+    if es("admin"):
+        return redirect(url_for("usuarios"))
     d = hoy().isoformat()
     datos = {"hoy": d, "salas": salas_con_estado(),
              "citas_hoy": q(CITAS_SQL + alcance() + ACTIVOS + " AND c.fecha = ? ORDER BY c.hora", (d,))}
@@ -513,35 +500,33 @@ def inicio():
         datos["sesiones"] = q(SESIONES_SQL + ACTIVOS + " AND s.estado = 'Pendiente' ORDER BY s.enviado")
     return render_template(f"inicio_{g.usuario['rol']}.html", **datos)
 
-
 # ---------- pacientes ----------
 @app.route("/pacientes")
-@solo("estudiante", "profesor")
+@solo("estudiante", "profesor", "admin")
 def pacientes():
     texto = request.args.get("q", "").strip()
     est = request.args.get("estudiante", type=int)
-    archivados = es("profesor") and request.args.get("archivados") == "1"
+    archivados = not es("estudiante") and request.args.get("archivados") == "1"
     patron = f"%{texto}%"
     sql = ("SELECT p.*, u.nombre AS estudiante_nombre FROM pacientes p LEFT JOIN usuarios u ON u.id = p.estudiante_id "
            "WHERE (p.nombre LIKE ? OR p.cedula LIKE ? OR p.telefono LIKE ?)" + alcance() +
            " AND COALESCE(p.archivado, 0) = ?")
     args = [patron, patron, patron, int(archivados)]
-    if est and es("profesor"):
+    if est and not es("estudiante"):
         sql += " AND p.estudiante_id = ?"
         args.append(est)
     return render_template("pacientes.html", texto=texto, est=est, estudiantes=estudiantes(), archivados=archivados,
                            pacientes=q(sql + " ORDER BY p.nombre", args))
 
-
 @app.route("/pacientes/nuevo", methods=["GET", "POST"])
 @app.route("/pacientes/<int:pid>/editar", methods=["GET", "POST"])
-@solo("estudiante", "profesor")
+@solo("estudiante")
 def paciente_form(pid=None):
     p = dict(paciente_o_404(pid)) if pid else {}
     if request.method == "POST":
         antes = p
         p = {c: request.form.get(c, "").strip() for c in CAMPOS_PACIENTE}
-        p["estudiante_id"] = request.form.get("estudiante_id", type=int) if es("profesor") else g.usuario["id"]
+        p["estudiante_id"] = g.usuario["id"]  # cada estudiante registra a sus propios pacientes
         if not p["nombre"] or not p["cedula"]:
             flash("El nombre y la cédula son obligatorios.", "error")
         else:
@@ -557,16 +542,78 @@ def paciente_form(pid=None):
                 else:
                     pid = ejecutar(f"INSERT INTO pacientes({', '.join(p)}) VALUES ({', '.join('?' * len(p))})",
                                    tuple(p.values()))
+                    ejecutar("INSERT INTO asignaciones(paciente_id, estudiante_id, desde) VALUES (?, ?, ?)",
+                             (pid, g.usuario["id"], hoy().isoformat()))
                     anotar("Registró paciente", f"{p['nombre']} ({p['cedula']})", pid)
-                    flash("Paciente registrado.", "ok")
+                    # Paso siguiente: la razon por la que viene el paciente y su primera cita
+                    return redirect(url_for("paciente_razon", pid=pid))
                 return redirect(url_for("expediente", pid=pid))
             except sqlite3.IntegrityError:
                 flash("Ya existe un paciente con esa cédula.", "error")
-    return render_template("paciente_form.html", p=p, pid=pid, estudiantes=estudiantes())
+    return render_template("paciente_form.html", p=p, pid=pid)
 
+@app.route("/pacientes/<int:pid>/razon", methods=["GET", "POST"])
+@solo("estudiante")
+def paciente_razon(pid):
+    """Paso 2 del registro: por qué está el paciente en la clínica y, si ya se sabe, su primera cita."""
+    p = paciente_o_404(pid)
+    if request.method == "POST":
+        razon = request.form.get("motivo_consulta", "").strip()
+        fecha, hora = request.form.get("fecha", ""), request.form.get("hora", "")
+        if not razon:
+            flash("Escriba la razón por la que viene el paciente.", "error")
+        else:
+            ejecutar("UPDATE pacientes SET motivo_consulta = ? WHERE id = ?", (razon, pid))
+            anotar("Registró la razón de la consulta", razon, pid)
+            if fecha and hora:
+                ejecutar("INSERT INTO citas(paciente_id, fecha, hora, motivo, sala_id) VALUES (?, ?, ?, ?, ?)",
+                         (pid, fecha, hora, request.form.get("motivo", "").strip() or razon,
+                          request.form.get("sala_id", type=int)))
+                anotar("Agendó cita", f"{fecha} {hora}", pid)
+            flash("Razón de la consulta guardada." + (" Cita agendada." if fecha and hora else ""), "ok")
+            return redirect(url_for("expediente", pid=pid))
+    return render_template("paciente_razon.html", p=p, hoy=hoy().isoformat(), salas=salas_con_estado())
+
+@app.route("/pacientes/<int:pid>/asignar", methods=["GET", "POST"])
+@solo("admin")
+def paciente_asignar(pid):
+    """Cambiar de estudiante: el trabajo del estudiante anterior se archiva con el resumen de lo que hizo."""
+    p = paciente_o_404(pid)
+    actual = q(ASIGNACIONES_SQL + " WHERE a.paciente_id = ? AND a.hasta IS NULL ORDER BY a.id DESC", (pid,), uno=True)
+    if request.method == "POST":
+        nuevo = request.form.get("estudiante_id", type=int)
+        resumen = request.form.get("resumen", "").strip()
+        if not nuevo or not q("SELECT 1 FROM usuarios WHERE id = ? AND rol = 'estudiante'", (nuevo,), uno=True):
+            flash("Elija el estudiante que recibe al paciente.", "error")
+        elif nuevo == p["estudiante_id"]:
+            flash("Ese paciente ya está asignado a ese estudiante.", "error")
+        elif actual and not resumen:
+            flash("Escriba qué se le hizo al paciente y qué trabajó el estudiante anterior.", "error")
+        else:
+            if actual:
+                ejecutar("UPDATE asignaciones SET hasta = ?, resumen = ? WHERE id = ?",
+                         (hoy().isoformat(), resumen, actual["id"]))
+            ejecutar("INSERT INTO asignaciones(paciente_id, estudiante_id, desde) VALUES (?, ?, ?)",
+                     (pid, nuevo, hoy().isoformat()))
+            ejecutar("UPDATE pacientes SET estudiante_id = ? WHERE id = ?", (nuevo, pid))
+            recibe = q("SELECT nombre FROM usuarios WHERE id = ?", (nuevo,), uno=True)["nombre"]
+            anotar("Cambió el paciente de estudiante",
+                   f"De {actual['estudiante'] if actual else 'sin asignar'} a {recibe}. "
+                   f"Trabajo archivado: {resumen}".strip(), pid)
+            flash(f"{p['nombre']} pasó a {recibe}. El trabajo anterior quedó archivado en el historial.", "ok")
+            return redirect(url_for("expediente", pid=pid, _anchor="trabajo"))
+    return render_template("paciente_asignar.html", p=p, actual=actual, estudiantes=estudiantes())
+
+@app.route("/pacientes/<int:pid>/consentimiento")
+@solo("estudiante", "profesor", "admin")
+def consentimiento(pid):
+    """Hoja de consentimiento lista para imprimir, con la firma del paciente."""
+    p = paciente_o_404(pid)
+    return render_template("consentimiento.html", p=p,
+                           estudiante=q("SELECT nombre FROM usuarios WHERE id = ?", (p["estudiante_id"],), uno=True))
 
 @app.route("/pacientes/<int:pid>")
-@solo("estudiante", "profesor")
+@solo("estudiante", "profesor", "admin")
 def expediente(pid):
     p = paciente_o_404(pid)
     abierta = q(SESIONES_SQL + " AND s.paciente_id = ? AND s.estado IN ('Abierta', 'Corregir')", (pid,), uno=True)
@@ -581,13 +628,14 @@ def expediente(pid):
         citas=q(CITAS_SQL + " AND c.paciente_id = ? ORDER BY c.fecha DESC, c.hora DESC", (pid,)),
         tratamientos=q("SELECT * FROM tratamientos WHERE paciente_id = ? ORDER BY id DESC", (pid,)),
         tarifario=q("SELECT * FROM tarifario ORDER BY procedimiento"),
-        historial=q(BITACORA_SQL + " WHERE b.paciente_id = ? ORDER BY b.id DESC", (pid,)) if es("profesor") else [],
+        trabajo=q(ASIGNACIONES_SQL + " WHERE a.paciente_id = ? ORDER BY a.id DESC", (pid,)),
+        hizo=q(BITACORA_SQL + " WHERE b.paciente_id = ? AND u.rol = 'estudiante' ORDER BY b.id DESC", (pid,)),
+        historial=q(BITACORA_SQL + " WHERE b.paciente_id = ? ORDER BY b.id DESC", (pid,)) if not es("estudiante") else [],
         archivo=q(BITACORA_SQL + " WHERE b.paciente_id = ? AND b.accion = 'Archivó paciente' ORDER BY b.id DESC",
                   (pid,), uno=True) if p["archivado"] else None)
 
-
 @app.post("/pacientes/<int:pid>/archivo")
-@solo("profesor")
+@solo("admin")
 def paciente_archivar(pid):
     """Los expedientes no se borran: se archivan (y se pueden restaurar)."""
     p = paciente_o_404(pid)
@@ -605,15 +653,13 @@ def paciente_archivar(pid):
     flash(f"{p['nombre']} fue archivado. Su expediente se conserva y puede restaurarse.", "ok")
     return redirect(url_for("pacientes"))
 
-
 def sesion_o_404(sid):
     """Sesion de odontograma de un paciente al que el usuario tiene acceso."""
     return q("SELECT s.* FROM odonto_sesiones s JOIN pacientes p ON p.id = s.paciente_id WHERE s.id = ?" + alcance(),
              (sid,), uno=True) or abort(404)
 
-
 @app.post("/pacientes/<int:pid>/sesiones")
-@solo("estudiante", "profesor")
+@solo("estudiante")
 def sesion_nueva(pid):
     """Paso 1: sin la foto del odontograma presencial no se puede llenar el digital."""
     paciente_o_404(pid)
@@ -629,9 +675,8 @@ def sesion_nueva(pid):
         flash("Foto guardada. Ahora llene el odontograma digital y envíelo a revisión.", "ok")
     return volver(pid, "odontograma")
 
-
 @app.post("/sesiones/<int:sid>/diente")
-@solo("estudiante", "profesor")
+@solo("estudiante")
 def sesion_diente(sid):
     """Paso 2: marcar dientes en el odontograma digital de una sesion con foto."""
     s = sesion_o_404(sid)
@@ -648,9 +693,8 @@ def sesion_diente(sid):
     anotar("Marcó diente en el odontograma digital", f"Sesión {sid}. Diente {diente}: {estado}", s["paciente_id"])
     return jsonify(ok=True)
 
-
 @app.post("/sesiones/<int:sid>/foto")
-@solo("estudiante", "profesor")
+@solo("estudiante")
 def sesion_foto(sid):
     s = sesion_o_404(sid)
     if s["estado"] not in EDITABLES:
@@ -664,9 +708,8 @@ def sesion_foto(sid):
         flash("Foto reemplazada.", "ok")
     return volver(s["paciente_id"], "odontograma")
 
-
 @app.post("/sesiones/<int:sid>/enviar")
-@solo("estudiante", "profesor")
+@solo("estudiante")
 def sesion_enviar(sid):
     """Paso 3: el odontograma queda bloqueado hasta que el docente lo revise."""
     s = sesion_o_404(sid)
@@ -677,9 +720,8 @@ def sesion_enviar(sid):
         flash("Odontograma enviado al docente para su revisión.", "ok")
     return volver(s["paciente_id"], "odontograma")
 
-
 @app.route("/sesiones/<int:sid>")
-@solo("estudiante", "profesor")
+@solo("estudiante", "profesor", "admin")
 def sesion_ver(sid):
     """Foto presencial junto al odontograma digital: pantalla de revision del docente."""
     s = q(SESIONES_SQL + " AND s.id = ?" + alcance(), (sid,), uno=True) or abort(404)
@@ -687,7 +729,6 @@ def sesion_ver(sid):
         "sesion.html", s=s,
         dientes=dientes_de(s["paciente_id"]),
         registros=q("SELECT * FROM odonto_registros WHERE sesion_id = ? ORDER BY diente", (sid,)))
-
 
 @app.post("/sesiones/<int:sid>/revision")
 @solo("profesor")
@@ -706,9 +747,8 @@ def sesion_revision(sid):
         flash("Revisión guardada.", "ok")
     return regresar(url_for("sesion_ver", sid=sid))
 
-
 @app.route("/fotos/<nombre>")
-@solo("estudiante", "profesor")
+@solo("estudiante", "profesor", "admin")
 def foto(nombre):
     # El docente tiene acceso a todas las fotos; el estudiante, solo a las de sus pacientes
     if es("estudiante"):
@@ -716,9 +756,8 @@ def foto(nombre):
           (nombre,), uno=True) or abort(404)
     return send_from_directory(FOTOS, nombre)
 
-
 @app.post("/pacientes/<int:pid>/firma")
-@solo("estudiante", "profesor")
+@solo("estudiante")
 def firmar(pid):
     paciente_o_404(pid)
     firma = request.form.get("firma", "")
@@ -730,7 +769,6 @@ def firmar(pid):
         flash("Falta la firma del paciente.", "error")
     return volver(pid, "consentimiento")
 
-
 @app.post("/pacientes/<int:pid>/aprobacion")
 @solo("profesor")
 def aprobar(pid):
@@ -741,10 +779,9 @@ def aprobar(pid):
     flash("Paciente aprobado." if aprobado else "Aprobación retirada.", "ok")
     return regresar(url_for("expediente", pid=pid))
 
-
 # ---------- tratamientos ----------
 @app.post("/pacientes/<int:pid>/tratamientos")
-@solo("estudiante", "profesor")
+@solo("estudiante")
 def tratamiento_nuevo(pid):
     paciente_o_404(pid)
     f = request.form
@@ -756,16 +793,15 @@ def tratamiento_nuevo(pid):
         flash("Tratamiento agregado.", "ok")
     return volver(pid, "tratamientos")
 
-
 @app.post("/tratamientos/<int:tid>")
-@solo("estudiante", "profesor")
+@solo("estudiante", "admin")
 def tratamiento_actualizar(tid):
     t = q("SELECT * FROM tratamientos WHERE id = ?", (tid,), uno=True) or abort(404)
     paciente_o_404(t["paciente_id"])
     f = request.form
     if f.get("eliminar"):
-        if t["pagado"] > 0 and not es("profesor"):
-            flash("Este tratamiento tiene pagos registrados; solo un profesor puede eliminarlo.", "error")
+        if t["pagado"] > 0 and not es("admin"):
+            flash("Este tratamiento tiene pagos registrados; solo el administrador puede eliminarlo.", "error")
         else:
             ejecutar("DELETE FROM tratamientos WHERE id = ?", (tid,))
             anotar("Eliminó tratamiento", f"{t['procedimiento']} (costo {dinero(t['costo'])}, pagado {dinero(t['pagado'])})",
@@ -780,9 +816,8 @@ def tratamiento_actualizar(tid):
         anotar(f"Marcó tratamiento como {f['estado'].lower()}", t["procedimiento"], t["paciente_id"])
     return volver(t["paciente_id"], "tratamientos")
 
-
 @app.route("/tarifario", methods=["GET", "POST"])
-@solo("profesor")
+@solo("admin")
 def tarifario():
     if request.method == "POST" and request.form.get("procedimiento", "").strip():
         ejecutar("INSERT INTO tarifario(procedimiento, precio) VALUES (?, ?) "
@@ -793,26 +828,26 @@ def tarifario():
         return redirect(url_for("tarifario"))
     return render_template("tarifario.html", tarifario=q("SELECT * FROM tarifario ORDER BY procedimiento"))
 
-
 @app.post("/tarifario/<int:tid>/eliminar")
-@solo("profesor")
+@solo("admin")
 def tarifario_eliminar(tid):
     t = q("SELECT * FROM tarifario WHERE id = ?", (tid,), uno=True) or abort(404)
     ejecutar("DELETE FROM tarifario WHERE id = ?", (tid,))
     anotar("Quitó del tarifario", t["procedimiento"])
     return redirect(url_for("tarifario"))
 
-
 # ---------- citas ----------
 @app.route("/citas", methods=["GET", "POST"])
-@solo("estudiante", "profesor")
+@solo("estudiante", "profesor", "admin")
 def citas():
     if request.method == "POST":
+        if not es("estudiante"):
+            abort(403)  # el profesor solo revisa la agenda
         f = {k: request.form.get(k, "").strip() for k in ("paciente_id", "fecha", "hora", "sala_id", "motivo")}
         p = q("SELECT p.* FROM pacientes p WHERE p.id = ?" + alcance() + ACTIVOS, (f["paciente_id"],), uno=True)
         activas = " AND c.estado NOT IN ('Cancelada', 'No asistió')"
-        if not (p and f["fecha"] and f["hora"]):
-            flash("Elige paciente, fecha y hora.", "error")
+        if not (p and f["fecha"] and f["hora"] and f["motivo"]):
+            flash("Elige paciente, fecha, hora y la razón de la cita.", "error")
         elif f["fecha"] < hoy().isoformat():
             flash("No se pueden agendar citas en fechas pasadas.", "error")
         elif q("SELECT 1 FROM citas c WHERE c.paciente_id = ? AND c.fecha = ?" + activas,
@@ -845,9 +880,8 @@ def citas():
                                        " ORDER BY p.nombre"),
                            elegido=request.args.get("paciente", type=int))
 
-
 @app.post("/citas/<int:cid>/estado")
-@solo("estudiante", "profesor")
+@solo("estudiante", "admin")
 def cita_estado(cid):
     c = q("SELECT c.* FROM citas c JOIN pacientes p ON p.id = c.paciente_id WHERE c.id = ?" + alcance(),
           (cid,), uno=True) or abort(404)
@@ -856,9 +890,8 @@ def cita_estado(cid):
         anotar(f"Cambió cita a «{request.form['estado']}»", f"{c['fecha']} {c['hora']}", c["paciente_id"])
     return regresar(url_for("citas"))
 
-
 @app.post("/citas/<int:cid>/recordar-correo")
-@solo("estudiante", "profesor")
+@solo("estudiante")
 def cita_recordar_correo(cid):
     """Envia al paciente el enlace publico de su cita por correo (requiere DIENTECITO_SMTP_* configuradas)."""
     c = q(CITAS_SQL + " AND c.id = ?" + alcance(), (cid,), uno=True) or abort(404)
@@ -871,7 +904,6 @@ def cita_recordar_correo(cid):
         flash("El servidor de correo no está configurado en este servidor (variables DIENTECITO_SMTP_*).", "aviso")
     return regresar(url_for("citas"))
 
-
 @app.route("/c/<token>", methods=["GET", "POST"])
 def cita_publica(token):
     """Pantalla publica, sin cuenta: el paciente ve su cita y puede confirmarla o cancelarla desde el enlace."""
@@ -883,7 +915,6 @@ def cita_publica(token):
         flash("¡Gracias! Confirmamos su asistencia." if request.form["estado"] == "Confirmada" else "Su cita fue cancelada.", "ok")
         return redirect(url_for("cita_publica", token=token))
     return render_template("cita_publica.html", c=c)
-
 
 # ---------- salas y avisos a servicios ----------
 @app.route("/salas", methods=["GET", "POST"])
@@ -903,9 +934,8 @@ def salas():
     return render_template("salas.html", salas=salas_con_estado(), elegida=request.args.get("sala", type=int),
                            reportes=q(REPORTES_SQL + " ORDER BY r.estado = 'Resuelto', r.fecha DESC LIMIT 40"))
 
-
 @app.post("/salas/nueva")
-@solo("servicios", "profesor")
+@solo("servicios", "admin")
 def sala_nueva():
     nombre = request.form.get("nombre", "").strip()
     if nombre:
@@ -917,9 +947,8 @@ def sala_nueva():
             flash("Ya existe una sala con ese nombre.", "error")
     return redirect(url_for("salas"))
 
-
 @app.post("/salas/<int:sid>/eliminar")
-@solo("servicios", "profesor")
+@solo("servicios", "admin")
 def sala_eliminar(sid):
     s = q("SELECT * FROM salas WHERE id = ?", (sid,), uno=True) or abort(404)
     anotar("Eliminó sala", s["nombre"])
@@ -928,7 +957,6 @@ def sala_eliminar(sid):
     flash("Sala eliminada.", "ok")
     return redirect(url_for("salas"))
 
-
 @app.route("/avisos")
 @solo("servicios")
 def avisos():
@@ -936,7 +964,6 @@ def avisos():
         "avisos.html",
         abiertos=q(REPORTES_SQL + " WHERE r.estado != 'Resuelto' ORDER BY r.estado = 'En proceso', r.fecha"),
         resueltos=q(REPORTES_SQL + " WHERE r.estado = 'Resuelto' ORDER BY r.actualizado DESC LIMIT 20"))
-
 
 @app.post("/reportes/<int:rid>")
 @solo("servicios")
@@ -949,10 +976,9 @@ def reporte_estado(rid):
         flash("Reporte actualizado.", "ok")
     return redirect(url_for("avisos"))
 
-
 # ---------- inventario ----------
 @app.route("/inventario", methods=["GET", "POST"])
-@solo("servicios", "profesor")
+@solo("servicios", "admin")
 def inventario():
     if request.method == "POST" and request.form.get("material", "").strip():
         f = request.form
@@ -967,9 +993,8 @@ def inventario():
     return render_template("inventario.html", materiales=q(
         "SELECT * FROM inventario ORDER BY cantidad > minimo, material"))
 
-
 @app.post("/inventario/<int:iid>/ajustar")
-@solo("servicios", "profesor")
+@solo("servicios", "admin")
 def inventario_ajustar(iid):
     m = q("SELECT * FROM inventario WHERE id = ?", (iid,), uno=True) or abort(404)
     if request.form.get("eliminar"):
@@ -981,10 +1006,9 @@ def inventario_ajustar(iid):
         anotar("Ajustó inventario", f"{m['material']}: {delta:+d}")
     return redirect(url_for("inventario"))
 
-
 # ---------- usuarios (profesor) ----------
 @app.route("/usuarios", methods=["GET", "POST"])
-@solo("profesor")
+@solo("admin")
 def usuarios():
     if request.method == "POST":
         f = {k: request.form.get(k, "").strip() for k in ("usuario", "nombre", "rol", "clave")}
@@ -1008,9 +1032,8 @@ def usuarios():
         "SELECT u.*, (SELECT COUNT(*) FROM pacientes p WHERE p.estudiante_id = u.id) AS pacientes "
         "FROM usuarios u ORDER BY u.activo DESC, u.rol, u.nombre"))
 
-
 @app.post("/usuarios/<int:uid>")
-@solo("profesor")
+@solo("admin")
 def usuario_actualizar(uid):
     u = q("SELECT * FROM usuarios WHERE id = ?", (uid,), uno=True) or abort(404)
     if uid == g.usuario["id"]:
@@ -1027,10 +1050,9 @@ def usuario_actualizar(uid):
         flash("La clave debe tener al menos 6 caracteres.", "error")
     return redirect(url_for("usuarios"))
 
-
 # ---------- bitacora y copias de seguridad (profesor) ----------
 @app.route("/bitacora")
-@solo("profesor")
+@solo("profesor", "admin")
 def bitacora():
     texto = request.args.get("q", "").strip()
     usuario = request.args.get("usuario", type=int)
@@ -1043,9 +1065,8 @@ def bitacora():
                            usuarios=q("SELECT id, nombre FROM usuarios ORDER BY nombre"),
                            respaldos=sorted((p.name for p in RESPALDOS.glob("dientecito-*.db")), reverse=True))
 
-
 @app.route("/respaldo")
-@solo("profesor")
+@solo("admin")
 def descargar_respaldo():
     """Descarga un .zip con la base de datos y todas las fotos, para guardarlo fuera del servidor."""
     carpeta = Path(tempfile.mkdtemp())
@@ -1060,7 +1081,6 @@ def descargar_respaldo():
     respuesta.call_on_close(lambda: shutil.rmtree(carpeta, ignore_errors=True))
     return respuesta
 
-
 iniciar_db()
 
 if __name__ == "__main__":
@@ -1072,8 +1092,11 @@ if __name__ == "__main__":
         ip = "127.0.0.1"
     finally:
         s.close()
-    print("\n  Dientecito Feliz")
+    print("\n  Clínicas Odontológicas")
     print("  En esta computadora:            http://localhost:5000")
     print(f"  En el telefono (misma Wi-Fi):   http://{ip}:5000")
-    print(f"  Usuarios de ejemplo: profesor, estudiante, servicios (clave: {CLAVE_INICIAL})\n")
+    print("  Cuentas de ejemplo (CIF ficticios):")
+    for cif, nombre, rol in CUENTAS_EJEMPLO:
+        print(f"    {cif}  {nombre:22} {ROLES[rol]}")
+    print(f"  Contraseña de todas: {CLAVE_INICIAL}\n")
     app.run(host="0.0.0.0", port=5000)

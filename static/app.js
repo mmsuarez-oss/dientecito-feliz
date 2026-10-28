@@ -1,4 +1,4 @@
-// Dientecito Feliz - interacciones de la interfaz (sin librerias externas)
+// Clínicas Odontológicas - interacciones de la interfaz (sin librerias externas)
 const $ = (sel, raiz = document) => raiz.querySelector(sel);
 const $$ = (sel, raiz = document) => [...raiz.querySelectorAll(sel)];
 

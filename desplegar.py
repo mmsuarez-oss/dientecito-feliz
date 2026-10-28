@@ -1,4 +1,4 @@
-"""Publica (o actualiza) Dientecito Feliz en PythonAnywhere usando su API.
+"""Publica (o actualiza) Clínicas Odontológicas en PythonAnywhere usando su API.
 
 Uso:   python desplegar.py USUARIO [--clave CLAVE] [--eu]
 El token de la API se lee de la variable PA_TOKEN o del archivo .pa_token (no se sube a GitHub).
@@ -31,7 +31,6 @@ dominio = f"{args.usuario}.{'eu.' if args.eu else ''}pythonanywhere.com"
 api = f"https://{host}/api/v0/user/{args.usuario}"
 carpeta = f"/home/{args.usuario}/dientecito"
 
-
 def pedir(metodo, ruta, datos=None, archivo=None):
     headers = {"Authorization": f"Token {token}"}
     cuerpo = None
@@ -51,12 +50,10 @@ def pedir(metodo, ruta, datos=None, archivo=None):
     except urllib.error.HTTPError as e:
         return e.code, e.read().decode()
 
-
 def subir(destino, contenido):
     estado, resp = pedir("POST", f"/files/path{destino}", archivo=contenido)
     if estado not in (200, 201):
         raise SystemExit(f"Error subiendo {destino}: {estado} {resp}")
-
 
 print(f"Subiendo {len(ARCHIVOS)} archivos a {carpeta} ...")
 for rel in ARCHIVOS:

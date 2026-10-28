@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+{% block titulo %}Consentimiento de {{ p.nombre }}{% endblock %}
+{% block contenido %}
+  <div class="en-linea sin-imprimir" style="justify-content: space-between">
+    <a href="{{ url_for('expediente', pid=p.id) }}">&larr; Volver al expediente</a>
+    <span class="tenue">Para imprimir o guardar en PDF: Ctrl+P (⌘P en Mac).</span>
+  </div>
+
+  <div class="hoja">
+    <div class="hoja-encabezado">
+      <img src="{{ url_for('static', filename='logo-uam.png') }}" alt="Universidad Americana (UAM)">
+      <div><b>Clínicas Odontológicas</b><br>Facultad de Odontología UAM<br>Consentimiento informado</div>
+    </div>
+
+    <div class="tabla">
+      <table>
+        <tbody>
+          <tr><th>Paciente</th><td>{{ p.nombre }}</td></tr>
+          <tr><th>Cédula</th><td>{{ p.cedula }}</td></tr>
+          <tr><th>Razón de la consulta</th><td>{{ p.razon or '—' }}</td></tr>
+          <tr><th>Estudiante a cargo</th><td>{{ nombre_de(p.estudiante) }}</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <p class="texto-legal">
+      Yo, <b>{{ p.nombre }}</b>, con cédula <b>{{ p.cedula }}</b>, autorizo a los estudiantes de la Clínica
+      Odontológica UAM, bajo supervisión docente, a realizar los procedimientos de diagnóstico y tratamiento que me
+      han sido explicados. He sido informado(a) de sus beneficios, riesgos y alternativas, y he podido hacer
+      preguntas que fueron respondidas a mi satisfacción.
+    </p>
+
+    <div class="firmas">
+      <div>
+        <div class="firma">{{ p.firma or '' }}</div>
+        <div class="linea-firma">Firma del paciente{% if p.firma %} · {{ p.firma_fecha }}{% endif %}</div>
+      </div>
+      <div>
+        <div class="firma"></div>
+        <div class="linea-firma">Firma del docente</div>
+      </div>
+    </div>
+  </div>
+
+  {% if es_rol == "estudiante" %}
+  <form method="post" class="sin-imprimir">
+    <fieldset>
+      <legend>{{ "Volver a firmar" if p.firma else "Firma del paciente" }}</legend>
+      <p class="tenue">En el prototipo la firma se escribe; en el sistema el paciente la dibuja con el dedo.</p>
+      <div class="campo"><span>Escriba su nombre</span><input name="firma" value="{{ p.firma }}"></div>
+      <div class="acciones"><button class="btn">Guardar firma</button></div>
+    </fieldset>
+  </form>
+  {% endif %}
+{% endblock %}

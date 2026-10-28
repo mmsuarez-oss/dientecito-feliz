@@ -2,7 +2,7 @@
 {% block titulo %}Su cita{% endblock %}
 {% block publico %}
 <div class="entrar" style="max-width: 420px">
-  <span class="titulo">Dientecito Feliz<small>Clínica Odontológica UAM</small></span>
+  <span class="titulo">Clínicas Odontológicas<small>Clínica Odontológica UAM</small></span>
   <div class="panel" style="min-height: 0">
     {% for tipo, texto in get_flashed_messages(with_categories=true) %}<div class="mensaje {{ tipo }}">{{ texto }}</div>{% endfor %}
     <p>Hola <b>{{ c.nombre }}</b>, esta es su cita:</p>

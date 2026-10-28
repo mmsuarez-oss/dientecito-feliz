@@ -4,27 +4,30 @@
   <table>
     <thead><tr>
       <th>Fecha</th><th>Hora</th>{% if con_paciente %}<th>Paciente</th>{% endif %}
-      {% if con_estudiante %}<th>Estudiante</th>{% endif %}<th>Sala</th><th>Motivo</th><th>Estado</th><th></th>
+      {% if con_estudiante %}<th>Estudiante</th>{% endif %}<th>Sala</th><th>Razón de la cita</th><th>Estado</th><th></th>
     </tr></thead>
     <tbody>
     {% for c in citas %}
       <tr>
         <td class="fecha">{{ c.fecha|fecha }}</td>
         <td>{{ c.hora }}</td>
-        {% if con_paciente %}<td><a href="{{ url_for('expediente', pid=c.paciente_id) }}">{{ c.nombre }}</a></td>{% endif %}
+        {% if con_paciente %}<td><a href="{{ url_for('expediente', pid=c.paciente_id) }}">{{ c.nombre }}</a>
+          {% if c.motivo_consulta %}<div class="tenue">{{ c.motivo_consulta }}</div>{% endif %}</td>{% endif %}
         {% if con_estudiante %}<td>{{ c.estudiante_nombre or '' }}</td>{% endif %}
         <td>{{ c.sala or '' }}</td>
         <td>{{ c.motivo or '' }}</td>
         <td>
+          {% if g.usuario.rol == 'profesor' %}{{ c.estado }}{% else %}
           <form method="post" action="{{ url_for('cita_estado', cid=c.id) }}">
             <input type="hidden" name="volver" value="{{ request.full_path }}">
             <select name="estado" data-autoenviar aria-label="Estado">
               {% for e in ESTADOS_CITA %}<option {{ 'selected' if e == c.estado }}>{{ e }}</option>{% endfor %}
             </select>
           </form>
+          {% endif %}
         </td>
         <td>
-          {% if c.estado in ('Pendiente', 'Confirmada') %}
+          {% if c.estado in ('Pendiente', 'Confirmada') and g.usuario.rol == 'estudiante' %}
           <div class="en-linea">
             {% if recordatorio(c) %}<a class="btn chico" href="{{ recordatorio(c) }}" target="_blank" rel="noopener">WhatsApp</a>{% endif %}
             {% if c.correo %}
@@ -132,4 +135,24 @@
       <input type="hidden" name="firma">
       <div class="en-linea"><button type="button" class="btn" data-limpiar>Borrar</button><button class="btn">Guardar firma</button></div>
     </form>
+{% endmacro %}
+
+{# Plano sencillo de la clinica: cada sala con un check si esta disponible o una X si no #}
+{% macro plano_salas(salas) %}
+<div class="plano">
+  <div class="plano-titulo">Plano de la clínica</div>
+  <div class="plano-salas">
+    {% for s in salas %}
+    <a class="sala {{ 'ocupada' if s.pendiente else 'libre' }}" href="{{ url_for('salas', sala=s.id) }}#reportar"
+       title="{{ s.nombre }}: {{ 'necesita ' ~ s.pendiente|lower|replace(',', ' y ') if s.pendiente else 'disponible' }}">
+      <span class="marca-sala" aria-hidden="true">{{ '✗' if s.pendiente else '✓' }}</span>
+      <b>{{ s.nombre }}</b>
+      <small>{{ 'Necesita ' ~ s.pendiente|lower|replace(',', ' y ') if s.pendiente else 'Disponible' }}</small>
+    </a>
+    {% else %}
+    <p class="tenue">No hay salas registradas.</p>
+    {% endfor %}
+  </div>
+  <div class="plano-pasillo">Pasillo / recepción</div>
+</div>
 {% endmacro %}

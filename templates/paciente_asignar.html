@@ -1,0 +1,29 @@
+{% extends 'base.html' %}
+{% block titulo %}Cambiar de estudiante{% endblock %}
+{% block contenido %}
+<p><a href="{{ url_for('expediente', pid=p.id) }}">&larr; Volver al expediente</a></p>
+<h2>Cambiar {{ p.nombre }} de estudiante</h2>
+
+<form method="post">
+  <fieldset>
+    <legend>Traspaso del paciente</legend>
+    {% if actual %}
+    <p>Estudiante actual: <b>{{ actual.estudiante or 'sin asignar' }}</b> (desde {{ actual.desde|fecha }}).
+       Su trabajo se archiva con el resumen que escriba aquí; no se borra nada.</p>
+    <label class="campo arriba"><span>¿Qué se le hizo al paciente y qué trabajó el estudiante? *</span>
+      <textarea name="resumen" rows="4" required autofocus
+                placeholder="Ej.: historia clínica y odontograma completos, profilaxis y obturación del 36. Queda pendiente endodoncia del 46."></textarea>
+    </label>
+    {% else %}
+    <p class="tenue">Este paciente no tiene estudiante asignado.</p>
+    {% endif %}
+    <label class="campo"><span>Nuevo estudiante: *</span>
+      <select name="estudiante_id" required>
+        <option value="">Seleccione…</option>
+        {% for e in estudiantes %}{% if e.id != p.estudiante_id %}<option value="{{ e.id }}">{{ e.nombre }}</option>{% endif %}{% endfor %}
+      </select>
+    </label>
+    <div class="acciones"><button class="btn">Traspasar paciente</button></div>
+  </fieldset>
+</form>
+{% endblock %}

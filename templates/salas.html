@@ -1,8 +1,8 @@
 {% extends 'base.html' %}
-{% from '_macros.html' import tabla_salas with context %}
+{% from '_macros.html' import tabla_salas, plano_salas with context %}
 {% block titulo %}Salas{% endblock %}
 {% block contenido %}
-{% set administra = g.usuario.rol in ('servicios', 'profesor') %}
+{% set administra = g.usuario.rol in ('servicios', 'admin') %}
 <div class="columnas">
   <div>
     <form method="post" id="reportar">
@@ -36,6 +36,7 @@
 
   <div>
     <h2>Estado de las salas</h2>
+    {{ plano_salas(salas) }}
     {{ tabla_salas(salas, con_acciones=administra) }}
 
     <h2>Reportes recientes</h2>

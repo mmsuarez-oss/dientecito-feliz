@@ -3,6 +3,7 @@
 {% block titulo %}Citas{% endblock %}
 {% block contenido %}
 <div class="columnas">
+{% if g.usuario.rol == 'estudiante' %}
   <form method="post">
     <fieldset>
       <legend>Agendar cita</legend>
@@ -21,7 +22,7 @@
           {% for s in salas %}<option value="{{ s.id }}">{{ s.nombre }}{% if s.pendiente %} (necesita {{ s.pendiente|lower|replace(',', ' y ') }}){% endif %}</option>{% endfor %}
         </select>
       </label>
-      <label class="campo"><span>Motivo:</span><input name="motivo" list="motivos"></label>
+      <label class="campo"><span>Razón de la cita: *</span><input name="motivo" list="motivos" required placeholder="¿Para qué viene a esta cita?"></label>
       <datalist id="motivos">
         {% for m in ['Valoración', 'Historia clínica', 'Profilaxis', 'Operatoria', 'Periodoncia', 'Endodoncia', 'Exodoncia', 'Control'] %}<option value="{{ m }}">{% endfor %}
       </datalist>
@@ -31,6 +32,9 @@
       {% endif %}
     </fieldset>
   </form>
+{% else %}
+  <p class="tenue">Las citas las agenda el estudiante a cargo del paciente; aquí solo se consulta la agenda.</p>
+{% endif %}
 
   <div>
     <div class="filtros">

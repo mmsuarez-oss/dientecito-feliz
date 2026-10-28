@@ -1,4 +1,4 @@
-# Plan de pruebas — Dientecito Feliz
+# Plan de pruebas — Clínicas Odontológicas
 
 Corresponde a las actividades 6.1 (plan y casos de prueba) y 6.2 (pruebas unitarias y de integración) del cronograma.
 
@@ -6,26 +6,27 @@ Corresponde a las actividades 6.1 (plan y casos de prueba) y 6.2 (pruebas unitar
 
 | Tipo | Cómo se ejecuta | Qué cubre |
 |---|---|---|
-| **Automáticas de integración** | `python pruebas.py` | Los 31 casos de la sección 3: recorren la aplicación completa (servidor, reglas y base de datos) como lo haría cada usuario |
+| **Automáticas de integración** | `python pruebas.py` | Los 36 casos de la sección 3: recorren la aplicación completa (servidor, reglas y base de datos) como lo haría cada usuario |
+| **Automáticas del prototipo** | `python pruebas.py` dentro de `prototipo-no-funcional/` | Las 22 comprobaciones del prototipo no funcional que se presenta en la defensa |
 | **Manuales de interfaz** | Navegador de computadora y vista de teléfono (390 px) | Sección 4: diseño, uso táctil, fotos y firma |
 | **De aceptación** | Con la clínica (actividad 6.4) | Sección 5: pendientes |
 
 Las pruebas automáticas usan una **base de datos temporal**: no modifican `dientecito.db` ni las fotos reales. Cada caso tiene un código (CP-xx) que aparece en la salida del programa.
 
 **Datos de prueba:**
-- Cuentas de ejemplo `00000001` (profesor), `00000002` (estudiante) y `00000003` (servicios), más una segunda estudiante creada durante la prueba (`ana.ruiz`).
+- Las siete cuentas de ejemplo con CIF ficticios (dos profesores, dos estudiantes, dos de servicios y una de administración), más una estudiante creada durante la prueba (`grace.ruiz`).
 - Pacientes ficticios: *Luis Pérez* (T-100) y *Rosa Díaz* (T-200).
 - Fotos: archivos JPG mínimos.
 
 ## 2. Criterio de aceptación
-Se aprueba la versión si los **31 casos automáticos** terminan en OK y las pruebas manuales no encuentran defectos que impidan el uso.
+Se aprueba la versión si los **36 casos automáticos** terminan en OK y las pruebas manuales no encuentran defectos que impidan el uso.
 
 ## 3. Casos de prueba automáticos
 
 ### Migración
 | Código | Caso | Pasos / datos | Resultado esperado |
 |---|---|---|---|
-| CP-01 | Actualizar una base de versiones anteriores | Base con el esquema original, un paciente, un diente marcado y un registro con foto por diente | Se agregan tablas y columnas nuevas. El paciente y el diente se conservan. Se crean 3 usuarios y 3 salas de ejemplo. El registro antiguo se convierte en una sesión con su foto y su estado de revisión |
+| CP-01 | Actualizar una base de versiones anteriores | Base con el esquema original, un paciente, un diente marcado y un registro con foto por diente | Se agregan tablas y columnas nuevas. El paciente y el diente se conservan. Se crean las 7 cuentas de ejemplo y 3 salas. Cada paciente que ya existía estrena su historial de asignaciones. El registro antiguo se convierte en una sesión con su foto y su estado de revisión |
 
 ### Acceso y permisos
 | Código | Caso | Pasos / datos | Resultado esperado |
@@ -33,16 +34,17 @@ Se aprueba la versión si los **31 casos automáticos** terminan en OK y las pru
 | CP-02 | Páginas sin sesión | Abrir `/`, `/pacientes`, `/citas`, `/avisos` y `/bitacora` sin entrar | Redirige a la pantalla de entrada |
 | CP-03 | Clave incorrecta | CIF `00000001` con clave errónea | Mensaje "CIF o contraseña incorrectos", y el intento queda en la bitácora |
 | CP-04 | Pestañas por rol | Cada rol abre las páginas propias y las ajenas | Las propias responden; las ajenas dan error 403 |
-| CP-05 | Crear usuarios | CIF válido, CIF con espacio y clave de 3 caracteres | Crea el válido y rechaza los otros dos con su mensaje |
+| CP-05 | Crear usuarios | El profesor lo intenta; luego la administración con CIF válido, CIF con espacio y clave de 3 caracteres | El profesor recibe 403. La administración crea el válido y rechaza los otros dos con su mensaje |
 
 ### Pacientes y expediente
 | Código | Caso | Pasos / datos | Resultado esperado |
 |---|---|---|---|
-| CP-06 | Registrar paciente | Formulario vacío; luego un paciente válido con alergia; luego una cédula repetida | Pide los campos obligatorios, registra y muestra la alerta de alergia, y rechaza el duplicado |
-| CP-07 | Privacidad entre estudiantes | `ana.ruiz` intenta abrir un paciente de `estudiante` | No lo ve en su lista y la página responde 404. El profesor sí lo ve |
+| CP-06 | Registrar paciente | Formulario vacío; luego un paciente válido con alergia; luego una cédula repetida | Pide los campos obligatorios, registra y continúa en la página de la razón de la consulta, y rechaza el duplicado |
+| CP-06b | Razón del paciente | Guardar la razón vacía; luego «Dolor en la muela 36» | Primero la pide; luego la muestra en el expediente y al lado del nombre en la lista. Queda una asignación abierta |
+| CP-07 | Privacidad entre estudiantes | Otras dos estudiantes intentan abrir y listar un paciente ajeno | No lo ven en su lista de pacientes ni en su lista de citas, y la página responde 404. El profesor sí lo ve |
 | CP-08 | Auditoría de ediciones | Cambiar las alergias de «Penicilina» a «Penicilina, látex» | La bitácora guarda el valor anterior y el nuevo |
 | CP-09 | Consentimiento | Guardar sin firma; luego con firma | Primero pide la firma; luego muestra "Firmado el…" |
-| CP-10 | Aprobación docente | El estudiante intenta aprobar; luego el profesor | El estudiante recibe 403. Con el profesor aparece "Aprobado por…" |
+| CP-10 | El profesor solo revisa | El estudiante intenta aprobar; el profesor aprueba; el profesor intenta editar al paciente, agregar un tratamiento, firmar y agendar una cita | El estudiante recibe 403 al aprobar. El profesor aprueba («Aprobado por…») y recibe 403 en las cuatro acciones de registro |
 
 ### Odontograma: primero la foto presencial, después el digital
 | Código | Caso | Pasos / datos | Resultado esperado |
@@ -56,7 +58,7 @@ Se aprueba la versión si los **31 casos automáticos** terminan en OK y las pru
 ### Citas
 | Código | Caso | Pasos / datos | Resultado esperado |
 |---|---|---|---|
-| CP-16 | Agendar cita | Paciente con teléfono 8888 0000, mañana 09:00, Sala 1 | Cita creada con el enlace `wa.me/50588880000` |
+| CP-16 | Agendar cita con su razón | Paciente con teléfono 8888 0000, mañana 09:00, Sala 1, razón «Obturación del 36»; luego una cita sin razón | La cita se crea con el enlace `wa.me/50588880000`, su razón y la razón de la consulta del paciente. La cita sin razón se rechaza |
 | CP-17 | Fechas y duplicados | Cita en 2020; segunda cita del mismo paciente el mismo día | Ambas son rechazadas |
 | CP-18 | Sala ocupada | Otra cita en la Sala 1, mañana 09:00 | "Esa sala ya está ocupada a esa hora" |
 | CP-19 | Pacientes ajenos | `ana.ruiz` agenda o cambia una cita de un paciente ajeno | Rechazada (404) |
@@ -66,6 +68,7 @@ Se aprueba la versión si los **31 casos automáticos** terminan en OK y las pru
 |---|---|---|---|
 | CP-20 | Enviar aviso | El estudiante reporta la Sala 2 por limpieza | Servicios la ve en *Avisos* y el contador muestra 1 |
 | CP-21 | Advertencia al agendar | Cita en la Sala 2 con el reporte pendiente | La cita se crea y se advierte del reporte |
+| CP-22b | Plano de las salas | Reportar la Sala 3 y abrir *Salas* | El plano muestra las tres salas, dos con ✓ y la reportada con ✗ |
 | CP-22 | Resolver aviso | Servicios marca "En proceso" y luego "Resuelto" | El contador baja a 0 y el estado se ve en *Salas* |
 
 ### Tratamientos y cobros
@@ -88,6 +91,13 @@ Se aprueba la versión si los **31 casos automáticos** terminan en OK y las pru
 | Código | Caso | Pasos / datos | Resultado esperado |
 |---|---|---|---|
 | CP-31 | Clave y desactivación | Cambiar la clave con una confirmación distinta; luego correcta; luego el profesor desactiva la cuenta | Rechaza, luego acepta la clave nueva. Al desactivarla, la sesión deja de funcionar |
+
+### Traspaso de pacientes y consentimiento
+| Código | Caso | Pasos / datos | Resultado esperado |
+|---|---|---|---|
+| CP-32 | Cambio de estudiante | El estudiante y el profesor intentan abrir el traspaso; la administración traspasa sin resumen y luego con resumen | Los dos primeros reciben 403. Sin resumen se rechaza. Con resumen, el paciente cambia de estudiante, el periodo anterior se cierra con ese texto y el estudiante anterior ya no lo ve (404) |
+| CP-33 | Historial de trabajo | El estudiante nuevo abre la pestaña *Trabajo por estudiante* | Ve los dos estudiantes, el resumen archivado, quién lo atiende ahora y la lista de lo que cada uno le hizo |
+| CP-34 | Consentimiento impreso | Abrir la hoja de consentimiento; luego intentarlo como Servicios | Sale el texto del consentimiento, los datos del paciente, su razón de consulta y su firma. Servicios recibe 403 |
 
 ## 4. Pruebas manuales de interfaz
 
@@ -116,3 +126,4 @@ Con estudiantes y coordinación de la clínica:
 |---|---|---|
 | 2026-09-25 | Roles, odontograma con foto, avisos de salas, archivo, bitácora y respaldos | 31 de 31 casos automáticos correctos; PM-01 a PM-06 correctos |
 | 2026-09-25 | Odontograma por sesiones: primero la foto presencial, después el digital; revisión del docente lado a lado | 31 de 31 casos automáticos correctos; PM-01 a PM-07 correctos |
+| 2026-10-28 | Mejoras de la defensa: el profesor solo revisa, rol de administración, traspaso de pacientes con archivo del trabajo, razón del paciente y de la cita, plano de salas y consentimiento imprimible | 36 de 36 casos automáticos correctos; 22 de 22 del prototipo no funcional |

@@ -1,4 +1,4 @@
-# Manual de usuario — Dientecito Feliz
+# Manual de usuario — Clínicas Odontológicas
 
 Sistema de gestión de la Clínica Odontológica UAM. Corresponde a la actividad 5.5 del cronograma.
 
@@ -8,7 +8,11 @@ Sistema de gestión de la Clínica Odontológica UAM. Corresponde a la actividad
 2. Escriba su **CIF** y su **clave**, y presione **Iniciar sesión**.
 3. Arriba a la derecha aparecen su nombre, **Mi cuenta** (para cambiar la clave) y **Salir**.
 
-Las cuentas las crea un profesor. Si olvida su clave, pídale a un profesor que la restablezca.
+Las cuentas las crea **la administración**. Si olvida su clave, pídale a la administración que la restablezca.
+
+Hay cuatro tipos de cuenta: **estudiante** (registra y atiende a sus pacientes), **profesor** (solo revisa y aprueba),
+**administración** (cuentas, salas, tarifario, inventario y traspasos de pacientes) y **servicios** (avisos de salas e
+inventario).
 
 **Usarlo como aplicación en el teléfono**
 - iPhone: en Safari toque *Compartir → Agregar a pantalla de inicio*.
@@ -32,8 +36,12 @@ Muestra:
 2. Llene los datos personales y la historia clínica. Solo el nombre y la cédula son obligatorios.
 3. Si el paciente tiene **alergias**, escríbalas: aparecerán como alerta en todo su expediente.
 4. Presione **Guardar**.
+5. La página siguiente le pide la **razón por la que está el paciente** (por qué vino a la clínica). Es obligatoria y
+   aparece al lado de su nombre en el expediente, en la lista de pacientes y en la página de citas. Ahí mismo puede
+   agendar su **primera cita** si ya quedó.
 
-El paciente queda **pendiente de aprobación** hasta que un profesor lo apruebe.
+El paciente queda **pendiente de aprobación** hasta que un profesor lo apruebe. Usted solo ve a sus propios pacientes
+y sus propias citas; los de los demás estudiantes no le aparecen.
 
 ### Expediente del paciente
 Tiene cinco secciones:
@@ -45,6 +53,7 @@ Tiene cinco secciones:
 | Tratamientos y cobros | Plan de tratamiento, pagos y saldo |
 | Consentimiento | Firma del paciente en la pantalla |
 | Citas | Historial de citas del paciente |
+| Trabajo por estudiante | Qué estudiante lo ha atendido en cada periodo, con el resumen de lo que le hizo, y la lista de todo el trabajo registrado |
 
 ### Llenar el odontograma (primero la foto presencial)
 El odontograma digital **no se puede llenar sin antes subir la foto del odontograma presencial**. Mientras no haya foto, los dientes aparecen atenuados y no responden.
@@ -61,15 +70,21 @@ Solo puede haber un odontograma en edición por paciente. El **Historial de odon
 1. Lea el texto al paciente.
 2. Pídale que firme con el dedo (o el mouse) dentro del recuadro. **Borrar** limpia el recuadro.
 3. Presione **Guardar firma**.
+4. Para entregarlo en papel, presione **Imprimir consentimiento** (en el expediente o en la misma sección). Se abre la
+   hoja con el logo de la UAM, los datos del paciente, la razón de la consulta, **la firma del paciente** y el espacio
+   para la firma del docente. El botón *Imprimir / Guardar PDF* usa el diálogo del navegador, que también permite
+   guardarla como PDF.
 
 ### Tratamientos y cobros
 - **Agregar tratamiento:** escriba el procedimiento. Si está en el tarifario, el costo se llena solo.
 - **Registrar pago:** escriba el monto en la fila del tratamiento y presione **Pagar**. El sistema no permite pagar más que el saldo.
 - Arriba se muestran el total, lo pagado y el saldo.
-- Un tratamiento que ya tiene pagos solo puede eliminarlo un profesor.
+- Un tratamiento que ya tiene pagos solo puede eliminarlo la administración.
 
 ### Citas
-1. En **Citas**, elija el paciente, la fecha, la hora, la sala (opcional) y el motivo, y presione **Agendar**.
+1. En **Citas**, elija el paciente, la fecha, la hora, la sala (opcional) y la **razón de la cita** (obligatoria: para
+   qué viene a esa cita), y presione **Agendar**. En la lista, cada cita muestra su razón y, debajo del nombre del
+   paciente, la razón por la que está en la clínica.
 2. El sistema **no permite**:
    - citas en fechas pasadas;
    - dos citas del mismo paciente el mismo día;
@@ -82,13 +97,20 @@ Solo puede haber un odontograma en edición por paciente. El **Historial de odon
 ### Reportar una sala
 En **Salas**, elija la sala y el problema (**necesita reparación** o **está sucia**), agregue un detalle y presione **Enviar aviso**. Servicios lo recibe de inmediato, y usted puede seguir el estado del reporte en la misma pantalla.
 
+Arriba de la lista está el **plano de la clínica**: cada sala con un ✓ si está disponible o una ✗ si tiene un reporte
+pendiente. Al tocar una sala del plano se abre el formulario de reporte con esa sala ya elegida.
+
 ---
 
 ## 3. Profesor
 
-Pestañas: **Inicio · Pacientes · Citas · Salas · Tarifario · Usuarios · Bitácora**
+Pestañas: **Inicio · Pacientes · Citas · Salas · Bitácora**
 
 El número junto a *Inicio* indica cuántos pendientes tiene.
+
+> **El profesor solo revisa.** No registra pacientes, no agenda citas, no registra tratamientos ni cobros, no toma
+> firmas y no administra cuentas: esas son tareas del estudiante a cargo y de la administración. Lo que el profesor
+> hace es revisar y aprobar el trabajo, y consultarlo todo.
 
 ### Revisar odontogramas
 En **Inicio → Odontogramas por revisar** aparecen los odontogramas que los estudiantes enviaron. Presione **Revisar** para abrir la pantalla de revisión:
@@ -107,7 +129,34 @@ El docente tiene acceso a todas las fotos y a todos los odontogramas de todos lo
 
 ### Pacientes
 - Ve a los pacientes de todos los estudiantes y puede filtrarlos por estudiante.
-- Al registrar o editar un paciente puede asignarle el estudiante responsable.
+- En el expediente puede consultar la razón de la consulta, el odontograma, los tratamientos, las citas, el
+  **Trabajo por estudiante** y el **Historial de cambios**, pero no modificar nada.
+
+### Trabajo de cada estudiante
+En el expediente, la pestaña **Trabajo por estudiante** responde dos preguntas:
+- **Quién lo ha atendido:** cada estudiante con la fecha en que recibió al paciente, la fecha en que lo entregó y el
+  resumen de lo que le hizo mientras lo tuvo a su cargo.
+- **Qué le hizo cada uno:** la lista con fecha de todo el trabajo registrado por cada estudiante (datos, odontograma,
+  tratamientos, pagos, citas y firma).
+
+### Historial de cambios
+En el expediente, la sección **Historial de cambios** muestra todo lo que se ha hecho con ese paciente: quién, qué y cuándo. En las ediciones incluye el valor anterior y el nuevo.
+
+---
+
+## 4. Administración
+
+Pestañas: **Usuarios · Pacientes · Citas · Salas · Tarifario · Inventario · Bitácora**
+
+### Cambiar un paciente de estudiante
+Cuando un paciente pasa a otro estudiante (fin de ciclo, cambio de grupo, el estudiante ya no lo atiende):
+1. En *Pacientes*, presione **Cambiar** junto al estudiante actual, o **Cambiar de estudiante** en el expediente.
+2. Escriba **qué se le hizo al paciente y qué trabajó** el estudiante anterior. Es obligatorio: ese texto es el
+   resumen con el que queda **archivado** su trabajo y ya no se puede modificar.
+3. Elija el **nuevo estudiante** y presione **Traspasar paciente**.
+
+El periodo del estudiante anterior se cierra con la fecha de hoy y su resumen; el nuevo estudiante empieza su propio
+periodo y es el único que ve al paciente en sus listas. Todo queda en *Trabajo por estudiante* y en la bitácora.
 
 ### Archivar un paciente (en lugar de borrarlo)
 Los expedientes **no se borran**. Al final del expediente:
@@ -116,16 +165,17 @@ Los expedientes **no se borran**. Al final del expediente:
 
 El paciente deja de aparecer en las listas y en la agenda, pero conserva todo su historial. Para verlo, marque **Ver archivados** en *Pacientes*. Dentro del expediente, **Restaurar** lo devuelve a las listas.
 
-### Historial de cambios
-En el expediente, la sección **Historial de cambios** muestra todo lo que se ha hecho con ese paciente: quién, qué y cuándo. En las ediciones incluye el valor anterior y el nuevo.
-
-### Tarifario
-Registre cada procedimiento con su precio. Si guarda un procedimiento que ya existe, se actualiza su precio.
-
 ### Usuarios
 - **Nuevo usuario:** nombre, CIF (sin espacios ni tildes), rol y clave inicial de al menos 6 caracteres.
 - **Restablecer clave:** escriba la clave nueva en la fila del usuario y presione **Cambiar**.
 - **Desactivar:** la persona ya no puede entrar, pero su historial se conserva. Las cuentas no se borran.
+
+### Tarifario
+Registre cada procedimiento con su precio. Si guarda un procedimiento que ya existe, se actualiza su precio.
+
+### Salas
+Agrega y elimina salas. El **plano de la clínica** muestra cada una con un ✓ si está disponible o una ✗ si tiene un
+reporte pendiente de limpieza o reparación.
 
 ### Bitácora y copias de seguridad
 - La **bitácora** registra todas las acciones del sistema, incluidos los inicios de sesión y los intentos fallidos. Puede buscar por texto o filtrar por usuario.
@@ -136,7 +186,7 @@ Registre cada procedimiento con su precio. Si guarda un procedimiento que ya exi
 
 ---
 
-## 4. Servicios
+## 5. Servicios
 
 Pestañas: **Avisos · Salas · Inventario**
 
@@ -158,11 +208,17 @@ Quien hizo el reporte verá el cambio de estado en la pestaña *Salas*.
 
 ---
 
-## 5. Preguntas frecuentes
+## 6. Preguntas frecuentes
 
 **La foto no se sube.** Revise la conexión. Las fotos grandes se reducen automáticamente antes de enviarse. El límite es de 15 MB.
 
-**No veo a un paciente.** Los estudiantes solo ven a sus propios pacientes. También es posible que esté archivado; pregunte a un profesor.
+**No veo a un paciente.** Los estudiantes solo ven a sus propios pacientes. Si el paciente pasó a otro estudiante, ya
+no le aparece: su trabajo quedó archivado en *Trabajo por estudiante*. También es posible que esté archivado; pregunte
+a la administración.
+
+**El profesor no puede registrar nada.** Es a propósito: el profesor solo revisa y aprueba. Registrar al paciente, su
+razón de consulta, sus citas, tratamientos y la firma le corresponde al estudiante a cargo; las cuentas, las salas y
+los traspasos, a la administración.
 
 **Me equivoqué en un diente.** Si todavía no lo envió, elija el estado correcto y toque el diente otra vez. Si ya lo envió, espere la revisión o pida al docente que solicite corrección.
 

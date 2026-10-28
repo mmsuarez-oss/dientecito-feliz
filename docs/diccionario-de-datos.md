@@ -1,4 +1,4 @@
-# Diccionario de datos — Dientecito Feliz
+# Diccionario de datos — Clínicas Odontológicas
 
 Base de datos SQLite (`dientecito.db`). Corresponde a la actividad 3.4 del cronograma.
 Las fechas se guardan como texto ISO (`AAAA-MM-DD` o `AAAA-MM-DD HH:MM`) en hora de Nicaragua (UTC−6).
@@ -11,6 +11,7 @@ Las fechas se guardan como texto ISO (`AAAA-MM-DD` o `AAAA-MM-DD HH:MM`) en hora
 usuarios ─┬─< pacientes (estudiante_id) ─┬─< citas >── salas ──< reportes >── usuarios
           ├─< odonto_sesiones >──────────┤   (una sesión = foto presencial + odontograma digital)
           │        └─< odonto_registros  ├─< tratamientos
+          ├─< asignaciones >─────────────┤   (un periodo de trabajo de un estudiante con el paciente)
           └─< bitacora >─────────────────┘
 tarifario, inventario: tablas independientes
 ```
@@ -25,7 +26,7 @@ Personas que usan el sistema. El rol define la interfaz que ven.
 | id | INTEGER | PK | Identificador del usuario |
 | usuario | TEXT | NN, Único | Nombre para iniciar sesión: 3 a 30 letras o números, en minúsculas |
 | nombre | TEXT | NN | Nombre completo que se muestra en pantalla |
-| rol | TEXT | NN | `estudiante`, `profesor` o `servicios` |
+| rol | TEXT | NN | `estudiante`, `profesor`, `servicios` o `admin` (administración). El profesor solo revisa; la administración lleva cuentas, salas, tarifario, inventario y los traspasos de pacientes |
 | clave | TEXT | NN | Clave cifrada con *scrypt* (nunca se guarda en texto plano) |
 | activo | INTEGER | Por defecto 1 | 1 = puede entrar · 0 = cuenta desactivada. Los usuarios no se borran |
 
@@ -46,12 +47,12 @@ Expediente clínico del paciente.
 | contacto_emergencia_telefono | TEXT | | Teléfono del contacto de emergencia |
 | contacto_emergencia | TEXT | | *Obsoleto*: campo único usado antes de separar nombre y teléfono |
 | alergias | TEXT | | Alergias conocidas. Si tiene valor, se muestra una alerta en el expediente |
-| motivo_consulta | TEXT | | Motivo de consulta |
+| motivo_consulta | TEXT | | Razón por la que está el paciente. Se pide en el paso siguiente al registro y se muestra al lado de su nombre y en la página de citas |
 | antecedentes | TEXT | | Antecedentes médicos |
 | medicamentos | TEXT | | Medicamentos que toma actualmente |
 | examen_clinico | TEXT | | Examen extraoral e intraoral |
 | plan | TEXT | | Diagnóstico y plan de tratamiento |
-| estudiante_id | INTEGER | FK → usuarios.id | Estudiante responsable. Cada estudiante ve solo sus pacientes |
+| estudiante_id | INTEGER | FK → usuarios.id | Estudiante responsable **ahora**. Cada estudiante ve solo sus pacientes y sus citas. El historial completo está en `asignaciones` |
 | aprobado | INTEGER | Por defecto 0 | 1 = aprobado por un profesor |
 | docente | TEXT | | Nombre del profesor que lo aprobó |
 | firma | TEXT | | Imagen PNG de la firma del consentimiento informado (en base64) |
@@ -159,6 +160,19 @@ Avisos de salas que necesitan reparación o limpieza, dirigidos a Servicios.
 | unidad | TEXT | | Unidad de medida (cajas, unidades…) |
 | cantidad | INTEGER | Por defecto 0 | Existencia actual; nunca baja de 0 |
 | minimo | INTEGER | Por defecto 0 | Si la cantidad llega a este valor, se marca "Reponer" |
+
+## asignaciones
+Periodos en los que un estudiante tuvo a su cargo a un paciente. Cuando el paciente cambia de estudiante, el periodo
+del anterior se cierra con la fecha y el resumen de lo que se le hizo: así queda archivado su trabajo y no se pierde.
+
+| Campo | Tipo | Restricciones | Descripción |
+|---|---|---|---|
+| id | INTEGER | PK | Identificador de la asignación |
+| paciente_id | INTEGER | NN, FK → pacientes.id | Paciente |
+| estudiante_id | INTEGER | FK → usuarios.id | Estudiante que lo atendió en ese periodo |
+| desde | TEXT | NN | Fecha en que lo recibió |
+| hasta | TEXT | | Fecha en que lo entregó. Vacío = es el estudiante que lo atiende ahora |
+| resumen | TEXT | | Qué se le hizo al paciente y qué trabajó el estudiante. Obligatorio al traspasarlo |
 
 ## bitacora
 Registro de auditoría: quién hizo qué y cuándo. La aplicación solo agrega registros; nunca los modifica ni los borra.

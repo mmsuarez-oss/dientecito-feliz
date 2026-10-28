@@ -3,11 +3,13 @@
 {% block titulo %}{{ p.nombre }}{% endblock %}
 {% block contenido %}
 {% set profesor = g.usuario.rol == 'profesor' %}
+{% set admin = g.usuario.rol == 'admin' %}
+{% set mio = g.usuario.rol == 'estudiante' %}
 <p><a href="{{ url_for('pacientes') }}">&larr; Pacientes</a></p>
 
 <div class="ficha">
   <div>
-    <h1>{{ p.nombre }}</h1>
+    <h1>{{ p.nombre }}{% if p.motivo_consulta %} <small class="razon">{{ p.motivo_consulta }}</small>{% endif %}</h1>
     <div class="tenue">
       Cédula {{ p.cedula }}{% if p.nacimiento %} · {{ p.nacimiento|edad }}{% endif %}{% if p.sexo %} · {{ p.sexo }}{% endif %}
       {% if p.telefono %} · Tel. <a href="tel:{{ p.telefono }}">{{ p.telefono }}</a>{% endif %}
@@ -21,10 +23,14 @@
     </div>
   </div>
   <div class="en-linea">
-    {% if p.telefono %}<a class="btn" href="{{ whatsapp(p.telefono) }}" target="_blank" rel="noopener">WhatsApp</a>{% endif %}
+    {% if p.telefono and mio %}<a class="btn" href="{{ whatsapp(p.telefono) }}" target="_blank" rel="noopener">WhatsApp</a>{% endif %}
+    {% if mio %}
     <a class="btn" href="{{ url_for('paciente_form', pid=p.id) }}">Editar datos</a>
     <a class="btn" href="{{ url_for('citas', paciente=p.id) }}">Agendar cita</a>
+    {% endif %}
+    <a class="btn" href="{{ url_for('consentimiento', pid=p.id) }}">Imprimir consentimiento</a>
     <button type="button" class="btn" data-imprimir>Imprimir / PDF</button>
+    {% if admin %}<a class="btn" href="{{ url_for('paciente_asignar', pid=p.id) }}">Cambiar de estudiante</a>{% endif %}
     {% if profesor %}
     <form method="post" action="{{ url_for('aprobar', pid=p.id) }}">
       <button class="btn" name="aprobado" value="{{ 0 if p.aprobado else 1 }}">{{ 'Retirar aprobación' if p.aprobado else 'Aprobar paciente' }}</button>
@@ -36,9 +42,11 @@
 {% if p.archivado %}
 <div class="mensaje aviso">
   Paciente archivado{% if archivo %} el {{ archivo.fecha[:10] }} por {{ archivo.usuario }}. Motivo: {{ archivo.detalle }}{% endif %}.
+  {% if admin %}
   <form method="post" action="{{ url_for('paciente_archivar', pid=p.id) }}" style="display: inline">
     <button class="btn chico" name="restaurar" value="1">Restaurar</button>
   </form>
+  {% endif %}
 </div>
 {% endif %}
 {% if p.alergias %}<div class="alergia">ALERGIAS: {{ p.alergias }}</div>{% endif %}
@@ -49,7 +57,8 @@
   <a href="#tratamientos">Tratamientos y cobros</a>
   <a href="#consentimiento">Consentimiento</a>
   <a href="#citas">Citas</a>
-  {% if profesor %}<a href="#historial">Historial de cambios</a>{% endif %}
+  <a href="#trabajo">Trabajo por estudiante</a>
+  {% if not mio %}<a href="#historial">Historial de cambios</a>{% endif %}
 </nav>
 <div class="panel subpanel">
 
@@ -68,11 +77,11 @@
       {% else %}—{% endif %}
     </dd>
   </dl>
-  <a class="btn" href="{{ url_for('paciente_form', pid=p.id) }}">Completar historia clínica</a>
+  {% if mio %}<a class="btn" href="{{ url_for('paciente_form', pid=p.id) }}">Completar historia clínica</a>{% endif %}
 </section>
 
 <section id="odontograma" class="seccion">
-  {% if abierta %}
+  {% if abierta and mio %}
     {% if abierta.estado == 'Corregir' %}
       <div class="mensaje error">El docente pidió corregir este odontograma: {{ abierta.observacion }}</div>
     {% endif %}
@@ -104,6 +113,7 @@
       <button class="btn">Enviar a revisión del docente</button>
     </form>
   {% else %}
+    {% if mio %}
     <form method="post" action="{{ url_for('sesion_nueva', pid=p.id) }}" enctype="multipart/form-data" data-foto="#odontograma">
       <fieldset>
         <legend>1. Foto del odontograma presencial</legend>
@@ -115,7 +125,8 @@
         <div class="acciones"><button class="btn">Subir foto y continuar</button></div>
       </fieldset>
     </form>
-    <p class="tenue">Odontograma actual del paciente. Se habilita al subir la foto.</p>
+    {% endif %}
+    <p class="tenue">Odontograma actual del paciente{% if mio %}. Se habilita al subir la foto{% endif %}.</p>
     {{ odontograma(dientes, bloqueado=true) }}
   {% endif %}
 
@@ -126,6 +137,7 @@
 <section id="tratamientos" class="seccion">
   {% set total = tratamientos|sum(attribute='costo') %}{% set pagado = tratamientos|sum(attribute='pagado') %}
   <div class="columnas">
+    {% if mio %}
     <form method="post" action="{{ url_for('tratamiento_nuevo', pid=p.id) }}">
       <fieldset>
         <legend>Agregar tratamiento</legend>
@@ -136,6 +148,9 @@
         <div class="acciones"><button class="btn">Agregar</button></div>
       </fieldset>
     </form>
+    {% else %}
+    <p class="tenue">Los tratamientos los registra el estudiante a cargo.</p>
+    {% endif %}
     <div>
       <p>Total: <b>{{ total|dinero }}</b> · Pagado: <b>{{ pagado|dinero }}</b> · Saldo: <b class="{{ 'rojo' if total > pagado }}">{{ (total - pagado)|dinero }}</b></p>
       <div class="tabla">
@@ -149,12 +164,14 @@
               <td class="num">{{ t.costo|dinero }}</td>
               <td class="num">{{ t.pagado|dinero }}</td>
               <td>
+                {% if mio %}
                 <form method="post" action="{{ url_for('tratamiento_actualizar', tid=t.id) }}">
                   <select name="estado" data-autoenviar aria-label="Estado">{% for e in ['Pendiente', 'Realizado'] %}<option {{ 'selected' if e == t.estado }}>{{ e }}</option>{% endfor %}</select>
                 </form>
+                {% else %}{{ t.estado }}{% endif %}
               </td>
               <td>
-                {% if t.costo > t.pagado %}
+                {% if t.costo > t.pagado and mio %}
                 <form method="post" action="{{ url_for('tratamiento_actualizar', tid=t.id) }}" class="en-linea">
                   <input name="abono" type="number" step="0.01" min="0.01" max="{{ t.costo - t.pagado }}" inputmode="decimal" required style="max-width: 110px" aria-label="Monto">
                   <button class="btn chico">Pagar</button>
@@ -162,7 +179,7 @@
                 {% else %}<span class="verde">Pagado</span>{% endif %}
               </td>
               <td>
-                {% if not t.pagado or profesor %}
+                {% if mio and not t.pagado or admin %}
                 <form method="post" action="{{ url_for('tratamiento_actualizar', tid=t.id) }}" data-confirmar="¿Eliminar este tratamiento?">
                   <button class="btn chico peligro" name="eliminar" value="1">Eliminar</button>
                 </form>
@@ -189,18 +206,57 @@
   {% if p.firma %}
     <p>Firmado el {{ p.firma_fecha|fecha_larga }}:</p>
     <img class="firma" src="{{ p.firma }}" alt="Firma del paciente">
-    <details style="margin-top: 10px"><summary class="btn">Volver a firmar</summary>{{ form_firma(p) }}</details>
-  {% else %}
+    <p><a class="btn" href="{{ url_for('consentimiento', pid=p.id) }}">Imprimir consentimiento firmado</a></p>
+    {% if mio %}<details style="margin-top: 10px"><summary class="btn">Volver a firmar</summary>{{ form_firma(p) }}</details>{% endif %}
+  {% elif mio %}
     {{ form_firma(p) }}
+  {% else %}
+    <p class="amarillo">Falta la firma del paciente. La toma el estudiante a cargo.</p>
   {% endif %}
 </section>
 
 <section id="citas" class="seccion">
   {{ tabla_citas(citas, con_paciente=false, vacio='Este paciente no tiene citas.') }}
-  <a class="btn" href="{{ url_for('citas', paciente=p.id) }}">Agendar cita</a>
+  {% if mio %}<a class="btn" href="{{ url_for('citas', paciente=p.id) }}">Agendar cita</a>{% endif %}
 </section>
 
-{% if profesor %}
+<section id="trabajo" class="seccion">
+  <h2>Estudiantes que han atendido al paciente</h2>
+  <p class="tenue">Cuando el paciente cambia de estudiante, el trabajo del anterior queda archivado con el resumen de lo que se le hizo.</p>
+  <div class="tabla">
+    <table>
+      <thead><tr><th>Estudiante</th><th>Desde</th><th>Hasta</th><th>Qué se le hizo y qué trabajó</th></tr></thead>
+      <tbody>
+      {% for a in trabajo %}
+        <tr>
+          <td>{{ a.estudiante or 'sin asignar' }}</td>
+          <td class="fecha">{{ a.desde|fecha }}</td>
+          <td class="fecha">{% if a.hasta %}{{ a.hasta|fecha }}{% else %}<span class="verde">Lo atiende ahora</span>{% endif %}</td>
+          <td>{{ a.resumen or '—' }}</td>
+        </tr>
+      {% else %}
+        <tr><td class="vacio" colspan="4">Sin asignaciones registradas.</td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <h2>Qué le hizo cada estudiante</h2>
+  <div class="tabla">
+    <table>
+      <thead><tr><th>Fecha</th><th>Estudiante</th><th>Acción</th><th>Detalle</th></tr></thead>
+      <tbody>
+      {% for b in hizo %}
+        <tr><td class="fecha">{{ b.fecha }}</td><td>{{ b.usuario }}</td><td>{{ b.accion }}</td><td>{{ b.detalle or '' }}</td></tr>
+      {% else %}
+        <tr><td class="vacio" colspan="4">Todavía no hay trabajo registrado.</td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+
+{% if not mio %}
 <section id="historial" class="seccion">
   <p class="tenue">Registro de todo lo que se ha hecho en este expediente. No se puede modificar.</p>
   <div class="tabla">
@@ -220,7 +276,7 @@
 
 </div>
 
-{% if profesor and not p.archivado %}
+{% if admin and not p.archivado %}
 <form method="post" action="{{ url_for('paciente_archivar', pid=p.id) }}" class="en-linea" style="margin-top: 14px; justify-content: flex-end"
       data-confirmar="¿Archivar a {{ p.nombre }}? Dejará de aparecer en las listas, pero su expediente se conserva.">
   <input name="motivo" required placeholder="Motivo para archivar (alta, abandono, duplicado…)" style="max-width: 360px" aria-label="Motivo">

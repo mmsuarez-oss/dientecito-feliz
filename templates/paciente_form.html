@@ -18,19 +18,11 @@
       <label class="campo"><span>Dirección:</span><input name="direccion" value="{{ p.direccion or '' }}"></label>
       <label class="campo"><span>Contacto emergencia:</span><input name="contacto_emergencia_nombre" value="{{ p.contacto_emergencia_nombre or '' }}" placeholder="Nombre"></label>
       <label class="campo"><span>Tel. de emergencia:</span><input name="contacto_emergencia_telefono" type="tel" value="{{ p.contacto_emergencia_telefono or '' }}" inputmode="tel"></label>
-      {% if g.usuario.rol == 'profesor' %}
-      <label class="campo"><span>Estudiante:</span>
-        <select name="estudiante_id">
-          <option value="">Sin asignar</option>
-          {% for e in estudiantes %}<option value="{{ e.id }}" {{ 'selected' if e.id == p.estudiante_id }}>{{ e.nombre }}</option>{% endfor %}
-        </select>
-      </label>
-      {% endif %}
     </fieldset>
 
     <fieldset>
       <legend>Historia clínica</legend>
-      <label class="campo arriba"><span>Motivo de consulta:</span><textarea name="motivo_consulta" rows="2">{{ p.motivo_consulta or '' }}</textarea></label>
+      <label class="campo arriba"><span>Razón de la consulta:</span><textarea name="motivo_consulta" rows="2" placeholder="¿Por qué está el paciente en la clínica?">{{ p.motivo_consulta or '' }}</textarea></label>
       <label class="campo"><span>Alergias:</span><input name="alergias" value="{{ p.alergias or '' }}" placeholder="Dejar vacío si no tiene"></label>
       <label class="campo arriba"><span>Antecedentes:</span><textarea name="antecedentes" rows="2">{{ p.antecedentes or '' }}</textarea></label>
       <label class="campo arriba"><span>Medicamentos:</span><textarea name="medicamentos" rows="2">{{ p.medicamentos or '' }}</textarea></label>

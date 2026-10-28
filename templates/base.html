@@ -6,12 +6,12 @@
   <meta name="theme-color" content="#2b4a6f">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-title" content="Dientecito Feliz">
+  <meta name="apple-mobile-web-app-title" content="Clínicas Odontológicas">
   <link rel="manifest" href="{{ url_for('static', filename='manifest.webmanifest') }}">
   <link rel="icon" href="{{ url_for('static', filename='icono.svg') }}">
   <link rel="apple-touch-icon" href="{{ url_for('static', filename='icono.svg') }}">
   <link rel="stylesheet" href="{{ url_for('static', filename='estilo.css') }}">
-  <title>{% block titulo %}Inicio{% endblock %} - Dientecito Feliz</title>
+  <title>{% block titulo %}Inicio{% endblock %} - Clínicas Odontológicas</title>
   {% block cabeza %}{% endblock %}
 </head>
 <body>
@@ -19,7 +19,7 @@
 {% if g.usuario %}
   {% set seccion = {'expediente': 'pacientes', 'paciente_form': 'pacientes'}.get(request.endpoint, request.endpoint) %}
   <header class="cabecera">
-    <a class="titulo" href="{{ url_for('inicio') }}">Dientecito Feliz<small>Clínica Odontológica UAM</small></a>
+    <a class="titulo" href="{{ url_for('inicio') }}">Clínicas Odontológicas<small>Facultad de Odontología UAM</small></a>
     <div class="sesion">
       {{ g.usuario.nombre }} ({{ ROLES[g.usuario.rol] }})
       <a href="{{ url_for('cuenta') }}">Mi cuenta</a>

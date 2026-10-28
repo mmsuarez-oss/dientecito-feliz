@@ -1,0 +1,46 @@
+{% extends 'base.html' %}
+{% block titulo %}Consentimiento de {{ p.nombre }}{% endblock %}
+{% block contenido %}
+<div class="en-linea sin-imprimir" style="justify-content: space-between">
+  <a href="{{ url_for('expediente', pid=p.id, _anchor='consentimiento') }}">&larr; Volver al expediente</a>
+  <button type="button" class="btn" data-imprimir>Imprimir / Guardar PDF</button>
+</div>
+{% if not p.firma %}<div class="mensaje aviso sin-imprimir">Este consentimiento todavía no tiene la firma del paciente.</div>{% endif %}
+
+<div class="hoja">
+  <div class="hoja-encabezado">
+    <img src="{{ url_for('static', filename='logo-uam.png') }}" alt="Universidad Americana (UAM)" width="510" height="213">
+    <div>
+      <b>Clínica Odontológica UAM</b><br>
+      Facultad de Odontología<br>
+      Consentimiento informado
+    </div>
+  </div>
+
+  <dl class="datos">
+    <dt>Paciente</dt><dd>{{ p.nombre }}</dd>
+    <dt>Cédula</dt><dd>{{ p.cedula }}</dd>
+    <dt>Razón de la consulta</dt><dd>{{ p.motivo_consulta or '—' }}</dd>
+    <dt>Estudiante a cargo</dt><dd>{{ estudiante.nombre if estudiante else 'sin asignar' }}</dd>
+    <dt>Docente que aprobó</dt><dd>{{ p.docente or 'pendiente' }}</dd>
+  </dl>
+
+  <p class="texto-legal">
+    Yo, <b>{{ p.nombre }}</b>, con cédula <b>{{ p.cedula }}</b>, autorizo a los estudiantes de la Clínica Odontológica
+    UAM, bajo supervisión docente, a realizar los procedimientos de diagnóstico y tratamiento que me han sido
+    explicados. He sido informado(a) de sus beneficios, riesgos y alternativas, y he podido hacer preguntas que
+    fueron respondidas a mi satisfacción.
+  </p>
+
+  <div class="firmas">
+    <div>
+      {% if p.firma %}<img class="firma" src="{{ p.firma }}" alt="Firma del paciente">{% else %}<div class="firma vacia"></div>{% endif %}
+      <div class="linea-firma">Firma del paciente{% if p.firma_fecha %} · {{ p.firma_fecha|fecha_larga }}{% endif %}</div>
+    </div>
+    <div>
+      <div class="firma vacia"></div>
+      <div class="linea-firma">Firma del docente</div>
+    </div>
+  </div>
+</div>
+{% endblock %}

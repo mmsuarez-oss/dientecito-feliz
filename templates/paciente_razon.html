@@ -1,0 +1,37 @@
+{% extends 'base.html' %}
+{% block titulo %}Razón de la consulta{% endblock %}
+{% block contenido %}
+<h2>Paso 2: ¿por qué está el paciente?</h2>
+<p><b>{{ p.nombre }}</b> quedó registrado con la cédula {{ p.cedula }}. Escriba la razón por la que viene a la clínica;
+   aparecerá al lado de su nombre y en la agenda de citas.</p>
+
+<form method="post">
+  <div class="columnas">
+    <fieldset>
+      <legend>Razón de la consulta</legend>
+      <label class="campo arriba"><span>Razón: *</span>
+        <textarea name="motivo_consulta" rows="3" required autofocus
+                  placeholder="Ej.: dolor en muela inferior derecha, limpieza, valoración…">{{ p.motivo_consulta or '' }}</textarea>
+      </label>
+    </fieldset>
+
+    <fieldset>
+      <legend>Primera cita (opcional)</legend>
+      <p class="tenue">Si ya quedó agendada, se crea de una vez.</p>
+      <label class="campo"><span>Fecha:</span><input type="date" name="fecha" min="{{ hoy }}"></label>
+      <label class="campo"><span>Hora:</span><input type="time" name="hora" step="900"></label>
+      <label class="campo"><span>Sala:</span>
+        <select name="sala_id">
+          <option value="">Sin asignar</option>
+          {% for s in salas %}<option value="{{ s.id }}">{{ s.nombre }}{% if s.pendiente %} (necesita {{ s.pendiente|lower|replace(',', ' y ') }}){% endif %}</option>{% endfor %}
+        </select>
+      </label>
+      <label class="campo"><span>Razón de la cita:</span><input name="motivo" placeholder="Si se deja vacío, se usa la razón de la consulta"></label>
+    </fieldset>
+  </div>
+  <div class="acciones">
+    <a class="btn" href="{{ url_for('expediente', pid=p.id) }}">Lo lleno después</a>
+    <button class="btn">Guardar y ver el expediente</button>
+  </div>
+</form>
+{% endblock %}

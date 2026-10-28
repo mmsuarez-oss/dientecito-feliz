@@ -3,38 +3,42 @@
 {% block contenido %}
 <form class="filtros" role="search">
   <input type="search" name="q" value="{{ texto }}" placeholder="Buscar por nombre, cédula o teléfono" data-buscar autocomplete="off">
-  {% if g.usuario.rol == 'profesor' %}
+  {% if g.usuario.rol != 'estudiante' %}
   <select name="estudiante" data-autoenviar aria-label="Estudiante">
     <option value="">Todos los estudiantes</option>
     {% for e in estudiantes %}<option value="{{ e.id }}" {{ 'selected' if e.id == est }}>{{ e.nombre }}</option>{% endfor %}
   </select>
   {% endif %}
-  {% if g.usuario.rol == 'profesor' %}
+  {% if g.usuario.rol != 'estudiante' %}
   <label class="en-linea" style="flex: none"><input type="checkbox" name="archivados" value="1" {{ 'checked' if archivados }} data-autoenviar> Ver archivados</label>
   {% endif %}
-  <a class="btn" href="{{ url_for('paciente_form') }}">Nuevo paciente</a>
+  {% if g.usuario.rol == 'estudiante' %}<a class="btn" href="{{ url_for('paciente_form') }}">Nuevo paciente</a>{% endif %}
 </form>
 
 <div class="tabla">
   <table>
     <thead><tr>
-      <th>Nombre</th><th>Cédula</th><th>Teléfono</th><th>Edad</th><th>Alergias</th>
-      {% if g.usuario.rol == 'profesor' %}<th>Estudiante</th>{% endif %}<th>Aprobado</th><th>Consentimiento</th>
+      <th>Nombre</th><th>Razón de la consulta</th><th>Cédula</th><th>Teléfono</th><th>Edad</th><th>Alergias</th>
+      {% if g.usuario.rol != 'estudiante' %}<th>Estudiante</th>{% endif %}<th>Aprobado</th><th>Consentimiento</th>
     </tr></thead>
     <tbody>
     {% for p in pacientes %}
       <tr>
         <td><a href="{{ url_for('expediente', pid=p.id) }}">{{ p.nombre }}</a></td>
+        <td>{{ p.motivo_consulta or '—' }}</td>
         <td>{{ p.cedula }}</td>
         <td>{{ p.telefono or '' }}</td>
         <td>{{ p.nacimiento|edad }}</td>
         <td>{% if p.alergias %}<span class="rojo">{{ p.alergias }}</span>{% endif %}</td>
-        {% if g.usuario.rol == 'profesor' %}<td>{{ p.estudiante_nombre or '' }}</td>{% endif %}
+        {% if g.usuario.rol != 'estudiante' %}
+        <td>{{ p.estudiante_nombre or 'sin asignar' }}
+          {% if g.usuario.rol == 'admin' %}<a class="btn chico" href="{{ url_for('paciente_asignar', pid=p.id) }}">Cambiar</a>{% endif %}</td>
+        {% endif %}
         <td>{% if p.aprobado %}<span class="verde">Sí</span>{% else %}<span class="amarillo">Pendiente</span>{% endif %}</td>
         <td>{% if p.firma %}<span class="verde">Firmado</span>{% else %}<span class="amarillo">Falta</span>{% endif %}</td>
       </tr>
     {% else %}
-      <tr><td class="vacio" colspan="8">{{ 'No hay pacientes archivados.' if archivados else ('No se encontraron pacientes.' if texto else 'Aún no hay pacientes registrados.') }}</td></tr>
+      <tr><td class="vacio" colspan="9">{{ 'No hay pacientes archivados.' if archivados else ('No se encontraron pacientes.' if texto else 'Aún no hay pacientes registrados.') }}</td></tr>
     {% endfor %}
     </tbody>
   </table>
