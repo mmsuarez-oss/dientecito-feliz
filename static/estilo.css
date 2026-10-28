@@ -8,7 +8,6 @@ body { margin: 0; background: var(--fondo); color: var(--texto);
        font: 14px/1.4 "Segoe UI", system-ui, -apple-system, Roboto, Arial, sans-serif; }
 a { color: var(--azul); }
 .app { max-width: 1120px; margin: 0 auto; padding: 8px 10px 24px; }
-.app:has(.entrar) { max-width: none; margin: 0; padding: 0; }
 .tenue { color: var(--tenue); }
 h2 { font-size: 14px; font-weight: 600; color: var(--texto); margin: 20px 0 8px; padding-bottom: 4px; border-bottom: 1px solid var(--borde); }
 h2:first-child { margin-top: 0; }
@@ -144,39 +143,73 @@ td select { width: auto; min-height: 26px; padding: 1px 4px; }
 .pad-firma { display: block; width: 100%; max-width: 520px; height: 180px; background: #fff; border: 1px dashed #888; touch-action: none; margin-bottom: 8px; }
 .firma { max-width: 320px; max-height: 150px; border: 1px solid var(--borde); background: #fff; }
 
-/* entrar: panel claro sobre la foto de la clinica, con el arco de dientes y el logo UAM */
-.entrar {
-  --acento: #14707a; --tinta: #10302f; --linea: #c9d3d1;
-  min-height: 100vh; padding: 48px 16px; display: flex; align-items: center; justify-content: center;
-  font-family: Onest, system-ui, sans-serif; color: var(--tinta);
-  background: linear-gradient(rgba(12, 40, 42, .45), rgba(12, 40, 42, .45)), url(fondo-clinica.jpg) center / cover no-repeat;
+/* entrar: portada de la Facultad de Odontologia (misma que la maqueta).
+   Las reglas van colgadas de .pagina para no pisar el resto del sistema. */
+body:has(.pagina) { font-family: 'Onest', system-ui, sans-serif; color: #10302F; background: #10302F; }
+.app:has(.pagina) { max-width: none; margin: 0; padding: 0; }
+
+.pagina {
+  --acento: #14707A;      /* color de boton y arco de dientes */
+  --tinta: #10302F;       /* texto principal */
+  --gris: #4E5F5E;        /* iconos */
+  --borde: #C9D3D1;       /* borde de los campos */
+  --panel: #F6F8F7;       /* fondo del panel */
+  --error: #B3261E;
+  --oscurecer: 0.45;      /* 0 = foto sin oscurecer, 0.8 = muy oscura */
+  position: relative; overflow: hidden; min-height: 100vh; padding: 48px 16px;
+  display: flex; align-items: center; justify-content: center;
 }
-.panel-entrar { width: 100%; max-width: 420px; padding: 36px clamp(20px, 6vw, 32px) 40px; display: flex; flex-direction: column; gap: 18px;
-                background: #f6f8f7; border-radius: 18px; box-shadow: 0 24px 60px rgba(6, 24, 26, .35); }
-.marca { position: relative; width: 100%; max-width: 360px; aspect-ratio: 360 / 190; align-self: center; color: var(--acento); }
-.marca svg { position: absolute; inset: 0; width: 100%; height: 100%; }
-.marca-logos { position: absolute; left: 0; right: 0; bottom: 10px; display: flex; flex-direction: column; align-items: center; gap: 6px; }
-.marca-logos img { display: block; width: 46%; height: auto; }
-.marca-logos p { margin: 0; font-size: 15px; font-weight: 600; color: var(--acento); }
-.entrar h1 { margin: 10px 0 0; font-size: 32px; font-weight: 600; letter-spacing: -.02em; text-align: center; }
-.campo { display: flex; flex-direction: column; gap: 6px; }
-.campo label { font-size: 14px; font-weight: 500; }
-.caja { display: flex; align-items: center; height: 52px; padding: 0 14px; background: #fff; border: 1.5px solid var(--linea); border-radius: 10px; }
-.caja.con-boton { padding-right: 4px; }
-.caja:focus-within { border-color: var(--acento); box-shadow: 0 0 0 3px rgba(20, 112, 122, .18); }
-.caja input { flex: 1; min-width: 0; height: 100%; border: 0; outline: none; background: transparent; font: inherit; font-size: 16px; color: var(--tinta); }
-.ver-clave { flex: none; width: 44px; height: 44px; padding: 0; display: grid; place-items: center;
-             border: 0; border-radius: 8px; background: transparent; cursor: pointer; }
-.ver-clave svg { width: 20px; height: 20px; fill: none; stroke: #4e5f5e; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
-.ojo-cerrado, .ver-clave[aria-pressed="true"] .ojo-abierto { display: none; }
-.ver-clave[aria-pressed="true"] .ojo-cerrado { display: block; }
-.ingresar { height: 52px; margin-top: 8px; font: inherit; font-size: 16px; font-weight: 600; color: #fff;
-            background: var(--acento); border: 0; border-radius: 10px; cursor: pointer; }
-.ingresar:hover { filter: brightness(.92); }
-.olvido summary { font-size: 14px; font-weight: 600; color: var(--acento); cursor: pointer; }
-.olvido p { margin: 10px 0 0; font-size: 13px; }
-.nota-entrar { margin: 0; font-size: 12px; text-align: center; color: #4e5f5e; }
-.ingresar:focus-visible, .ver-clave:focus-visible, .olvido summary:focus-visible { outline: 3px solid var(--tinta); outline-offset: 2px; }
+.pagina .fondo { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.pagina .velo { position: absolute; inset: 0; background: rgba(12, 40, 42, var(--oscurecer)); }
+.pagina .panel {
+  position: relative; width: 100%; max-width: 420px; min-height: 0;
+  padding: 36px clamp(20px, 6vw, 32px) 40px; border: 0; border-radius: 18px;
+  background: var(--panel); box-shadow: 0 24px 60px rgba(6, 24, 26, .35);
+  display: flex; flex-direction: column; gap: 28px;
+}
+
+/* arco de dientes con el logo */
+.pagina .marca { position: relative; width: 100%; max-width: 360px; aspect-ratio: 360 / 190; align-self: center; }
+.pagina .marca svg { position: absolute; inset: 0; width: 100%; height: 100%; }
+.pagina .marca-logos { position: absolute; left: 0; right: 0; bottom: 10px;
+                       display: flex; flex-direction: column; align-items: center; gap: 6px; }
+.pagina .marca-logos img { width: 46%; height: auto; display: block; }
+.pagina .marca-logos p { margin: 0; font-size: 15px; font-weight: 600; color: var(--acento); }
+
+.pagina h1 { margin: 0; font-size: 32px; line-height: 1.15; font-weight: 600; letter-spacing: -.02em; text-align: center; }
+.pagina form { margin: 0; display: flex; flex-direction: column; gap: 18px; }
+.pagina .campo { display: flex; flex-direction: column; align-items: stretch; gap: 6px; }
+.pagina .campo label { font-size: 14px; font-weight: 500; }
+.pagina .caja { display: flex; align-items: center; height: 52px; padding: 0 14px;
+                border: 1.5px solid var(--borde); border-radius: 10px; background: #fff; }
+.pagina .caja.con-boton { padding-right: 4px; }
+.pagina .caja:focus-within { border-color: var(--acento); box-shadow: 0 0 0 3px rgba(20, 112, 122, .18); }
+.pagina .caja input { flex: 1; min-width: 0; width: auto; height: 100%; min-height: 0; padding: 0;
+                      border: 0; outline: none; background: transparent;
+                      font-family: inherit; font-size: 16px; color: var(--tinta); box-shadow: none; }
+
+.pagina .ojo { width: 44px; height: 44px; flex: none; padding: 0; border: 0; border-radius: 8px;
+               background: transparent; display: flex; align-items: center; justify-content: center; cursor: pointer; }
+.pagina .ojo .ojo-cerrado { display: none; }
+.pagina .ojo[aria-pressed="true"] .ojo-abierto { display: none; }
+.pagina .ojo[aria-pressed="true"] .ojo-cerrado { display: block; }
+
+.pagina .boton { margin-top: 8px; height: 52px; border: 0; border-radius: 10px; background: var(--acento);
+                 color: #fff; font-family: inherit; font-size: 16px; font-weight: 600; cursor: pointer; }
+.pagina .boton:hover { filter: brightness(.92); }
+.pagina .ojo:focus-visible, .pagina .boton:focus-visible, .pagina .olvido summary:focus-visible {
+  outline: 3px solid var(--tinta); outline-offset: 2px; }
+
+/* avisos del servidor y el pie de la tarjeta */
+.pagina .mensaje { margin: 0; padding: 10px 12px; font-size: 13px; border: 0;
+                   border-left: 4px solid var(--acento); border-radius: 8px; background: #E7F1F0; }
+.pagina .mensaje.error { border-left-color: var(--error); background: #FDECEA; color: var(--error); }
+.pagina .en-proceso { display: flex; flex-direction: column; align-items: flex-start; gap: 10px;
+                      margin-top: 4px; padding-top: 16px; border-top: 1px solid var(--borde); }
+.pagina .olvido summary { font-size: 13px; color: var(--gris); text-decoration: underline; list-style: none; cursor: pointer; }
+.pagina .olvido summary::-webkit-details-marker { display: none; }
+.pagina .olvido p { margin: 8px 0 0; font-size: 12.5px; color: var(--gris); }
+.pagina .nota-entrar { margin: 0; align-self: center; font-size: 11.5px; color: var(--gris); text-align: center; }
 
 /* impresion / PDF del expediente: solo los datos, sin navegacion ni formularios de accion */
 @media print {

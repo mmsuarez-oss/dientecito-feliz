@@ -13,7 +13,7 @@ Corresponde a las actividades 6.1 (plan y casos de prueba) y 6.2 (pruebas unitar
 Las pruebas automáticas usan una **base de datos temporal**: no modifican `dientecito.db` ni las fotos reales. Cada caso tiene un código (CP-xx) que aparece en la salida del programa.
 
 **Datos de prueba:**
-- Cuentas de ejemplo `00000001` (profesor), `00000002` (estudiante) y `00000003` (servicios), más una segunda estudiante creada durante la prueba (`ana.ruiz`).
+- Cuentas de ejemplo `estudiante`, `profesor` y `servicios`, más una segunda estudiante creada durante la prueba (`ana.ruiz`).
 - Pacientes ficticios: *Luis Pérez* (T-100) y *Rosa Díaz* (T-200).
 - Fotos: archivos JPG mínimos.
 
@@ -31,9 +31,9 @@ Se aprueba la versión si los **31 casos automáticos** terminan en OK y las pru
 | Código | Caso | Pasos / datos | Resultado esperado |
 |---|---|---|---|
 | CP-02 | Páginas sin sesión | Abrir `/`, `/pacientes`, `/citas`, `/avisos` y `/bitacora` sin entrar | Redirige a la pantalla de entrada |
-| CP-03 | Clave incorrecta | CIF `00000001` con clave errónea | Mensaje "CIF o contraseña incorrectos", y el intento queda en la bitácora |
+| CP-03 | Clave incorrecta | Usuario `profesor` con clave errónea | Mensaje "Usuario o clave incorrectos", y el intento queda en la bitácora |
 | CP-04 | Pestañas por rol | Cada rol abre las páginas propias y las ajenas | Las propias responden; las ajenas dan error 403 |
-| CP-05 | Crear usuarios | CIF válido, CIF con espacio y clave de 3 caracteres | Crea el válido y rechaza los otros dos con su mensaje |
+| CP-05 | Crear usuarios | Usuario válido, usuario con espacio y clave de 3 caracteres | Crea el válido y rechaza los otros dos con su mensaje |
 
 ### Pacientes y expediente
 | Código | Caso | Pasos / datos | Resultado esperado |

@@ -41,10 +41,6 @@ SMTP_CLAVE = os.environ.get("DIENTECITO_SMTP_CLAVE")
 SMTP_DESDE = os.environ.get("DIENTECITO_SMTP_DESDE", SMTP_USUARIO)
 
 ROLES = {"estudiante": "Estudiante", "profesor": "Profesor", "servicios": "Servicios"}
-# Cuentas de ejemplo de la primera vez: CIF, nombre y rol
-CUENTAS_EJEMPLO = [("00000001", "Profesor de prueba", "profesor"),
-                   ("00000002", "Estudiante de prueba", "estudiante"),
-                   ("00000003", "Servicios generales", "servicios")]
 MENUS = {
     "estudiante": [("inicio", "Inicio"), ("pacientes", "Mis pacientes"), ("citas", "Citas"), ("salas", "Salas")],
     "profesor": [("inicio", "Inicio"), ("pacientes", "Pacientes"), ("citas", "Citas"), ("salas", "Salas"),
@@ -76,6 +72,9 @@ CREATE TABLE IF NOT EXISTS citas(
     id INTEGER PRIMARY KEY,
     paciente_id INTEGER NOT NULL REFERENCES pacientes(id) ON DELETE CASCADE,
     fecha TEXT NOT NULL, hora TEXT NOT NULL, motivo TEXT, estudiante TEXT);
+CREATE TABLE IF NOT EXISTS odontograma(
+    paciente_id INTEGER REFERENCES pacientes(id) ON DELETE CASCADE,
+    diente INTEGER, estado TEXT, PRIMARY KEY(paciente_id, diente));
 CREATE TABLE IF NOT EXISTS odonto_sesiones(
     id INTEGER PRIMARY KEY,
     paciente_id INTEGER NOT NULL REFERENCES pacientes(id) ON DELETE CASCADE,
@@ -174,15 +173,14 @@ def iniciar_db():
                           "observacion, revisado_por) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
                           (pid, foto, nota, fecha, uid, revision or "Pendiente", fecha, observacion, revisor)).lastrowid
         con.execute("UPDATE odonto_registros SET sesion_id = ? WHERE id = ?", (sid, rid))
-    for cif, _, rol in CUENTAS_EJEMPLO:  # antes las cuentas de ejemplo se llamaban como su rol
-        con.execute("UPDATE usuarios SET usuario = ? WHERE usuario = ? AND rol = ? "
-                    "AND NOT EXISTS (SELECT 1 FROM usuarios WHERE usuario = ?)", (cif, rol, rol, cif))
     if not con.execute("SELECT 1 FROM usuarios").fetchone():
-        for cif, nombre, rol in CUENTAS_EJEMPLO:
+        for usuario, nombre, rol in [("profesor", "Profesor de prueba", "profesor"),
+                                     ("estudiante", "Estudiante de prueba", "estudiante"),
+                                     ("servicios", "Servicios generales", "servicios")]:
             con.execute("INSERT INTO usuarios(usuario, nombre, rol, clave) VALUES (?, ?, ?, ?)",
-                        (cif, nombre, rol, generate_password_hash(CLAVE_INICIAL)))
+                        (usuario, nombre, rol, generate_password_hash(CLAVE_INICIAL)))
         # Los pacientes de versiones anteriores pasan al estudiante de ejemplo
-        con.execute("UPDATE pacientes SET estudiante_id = (SELECT id FROM usuarios WHERE usuario = '00000002') "
+        con.execute("UPDATE pacientes SET estudiante_id = (SELECT id FROM usuarios WHERE usuario = 'estudiante') "
                     "WHERE estudiante_id IS NULL")
     if not con.execute("SELECT 1 FROM salas").fetchone():
         con.executemany("INSERT INTO salas(nombre) VALUES (?)", [("Sala 1",), ("Sala 2",), ("Sala 3",)])
@@ -220,11 +218,6 @@ def ahora():
 
 def hoy():
     return ahora().date()
-
-
-def momento():
-    """Fecha y hora con la que se guardan los registros."""
-    return ahora().strftime("%Y-%m-%d %H:%M")
 
 
 def numero(texto):
@@ -343,13 +336,6 @@ def paciente_o_404(pid):
     return q("SELECT p.* FROM pacientes p WHERE p.id = ?" + alcance() + extra, (pid,), uno=True) or abort(404)
 
 
-def dientes_de(pid):
-    """Estado actual de cada diente: el ultimo marcado en el odontograma digital."""
-    return dict(q("""SELECT diente, estado FROM odonto_registros r WHERE paciente_id = ?
-                     AND id = (SELECT MAX(id) FROM odonto_registros
-                               WHERE paciente_id = r.paciente_id AND diente = r.diente)""", (pid,)))
-
-
 def estudiantes():
     return q("SELECT id, nombre FROM usuarios WHERE rol = 'estudiante' AND activo = 1 ORDER BY nombre")
 
@@ -465,7 +451,7 @@ def entrar():
             session["uid"] = u["id"]
             anotar("Inicio de sesión", usuario_id=u["id"])
             return redirect(url_for("inicio"))
-        anotar("Intento de acceso fallido", f"CIF: {request.form.get('usuario', '')[:40]}")
+        anotar("Intento de acceso fallido", f"Usuario: {request.form.get('usuario', '')[:40]}")
         flash("CIF o contraseña incorrectos. Revisa los datos e inténtalo de nuevo.", "error")
     return render_template("entrar.html")
 
@@ -573,7 +559,7 @@ def expediente(pid):
     return render_template(
         "expediente.html", p=p,
         estudiante=q("SELECT nombre FROM usuarios WHERE id = ?", (p["estudiante_id"],), uno=True),
-        dientes=dientes_de(pid),
+        dientes={d: e for d, e in q("SELECT diente, estado FROM odontograma WHERE paciente_id = ?", (pid,))},
         sesiones=q(SESIONES_SQL + " AND s.paciente_id = ? ORDER BY s.id DESC", (pid,)),
         abierta=abierta,
         marcados=[r["diente"] for r in q("SELECT diente FROM odonto_registros WHERE sesion_id = ?",
@@ -623,7 +609,7 @@ def sesion_nueva(pid):
         flash("Suba la foto del odontograma presencial (JPG o PNG) para poder llenar el digital.", "error")
     else:
         sid = ejecutar("INSERT INTO odonto_sesiones(paciente_id, foto, nota, fecha, usuario_id) VALUES (?, ?, ?, ?, ?)",
-                       (pid, foto, request.form.get("nota", "").strip(), momento(),
+                       (pid, foto, request.form.get("nota", "").strip(), ahora().strftime("%Y-%m-%d %H:%M"),
                         g.usuario["id"]))
         anotar("Subió foto del odontograma presencial", f"Sesión {sid}", pid)
         flash("Foto guardada. Ahora llene el odontograma digital y envíelo a revisión.", "ok")
@@ -644,7 +630,8 @@ def sesion_diente(sid):
     ejecutar("DELETE FROM odonto_registros WHERE sesion_id = ? AND diente = ?", (sid, diente))
     ejecutar("INSERT INTO odonto_registros(paciente_id, diente, estado, foto, fecha, usuario_id, sesion_id) "
              "VALUES (?, ?, ?, ?, ?, ?, ?)",
-             (s["paciente_id"], diente, estado, s["foto"], momento(), g.usuario["id"], sid))
+             (s["paciente_id"], diente, estado, s["foto"], ahora().strftime("%Y-%m-%d %H:%M"), g.usuario["id"], sid))
+    ejecutar("INSERT OR REPLACE INTO odontograma VALUES (?, ?, ?)", (s["paciente_id"], diente, estado))
     anotar("Marcó diente en el odontograma digital", f"Sesión {sid}. Diente {diente}: {estado}", s["paciente_id"])
     return jsonify(ok=True)
 
@@ -672,7 +659,7 @@ def sesion_enviar(sid):
     s = sesion_o_404(sid)
     if s["estado"] in EDITABLES:
         ejecutar("UPDATE odonto_sesiones SET estado = 'Pendiente', enviado = ? WHERE id = ?",
-                 (momento(), sid))
+                 (ahora().strftime("%Y-%m-%d %H:%M"), sid))
         anotar("Envió odontograma a revisión", f"Sesión {sid}", s["paciente_id"])
         flash("Odontograma enviado al docente para su revisión.", "ok")
     return volver(s["paciente_id"], "odontograma")
@@ -685,7 +672,7 @@ def sesion_ver(sid):
     s = q(SESIONES_SQL + " AND s.id = ?" + alcance(), (sid,), uno=True) or abort(404)
     return render_template(
         "sesion.html", s=s,
-        dientes=dientes_de(s["paciente_id"]),
+        dientes={d: e for d, e in q("SELECT diente, estado FROM odontograma WHERE paciente_id = ?", (s["paciente_id"],))},
         registros=q("SELECT * FROM odonto_registros WHERE sesion_id = ? ORDER BY diente", (sid,)))
 
 
@@ -701,7 +688,7 @@ def sesion_revision(sid):
         flash("Escriba qué debe corregir el estudiante.", "error")
     elif revision in ("Aprobado", "Corregir"):
         ejecutar("UPDATE odonto_sesiones SET estado = ?, observacion = ?, revisado_por = ?, revisado = ? WHERE id = ?",
-                 (revision, observacion, g.usuario["id"], momento(), sid))
+                 (revision, observacion, g.usuario["id"], ahora().strftime("%Y-%m-%d %H:%M"), sid))
         anotar(f"Revisó odontograma: {revision}", f"Sesión {sid}. {observacion}".strip(), s["paciente_id"])
         flash("Revisión guardada.", "ok")
     return regresar(url_for("sesion_ver", sid=sid))
@@ -893,7 +880,7 @@ def salas():
         if f.get("tipo") in TIPOS_REPORTE and q("SELECT 1 FROM salas WHERE id = ?", (f.get("sala_id"),), uno=True):
             ejecutar("INSERT INTO reportes(sala_id, tipo, descripcion, reportado_por, fecha) VALUES (?, ?, ?, ?, ?)",
                      (f["sala_id"], f["tipo"], f.get("descripcion", "").strip(), g.usuario["id"],
-                      momento()))
+                      ahora().strftime("%Y-%m-%d %H:%M")))
             sala = q("SELECT nombre FROM salas WHERE id = ?", (f["sala_id"],), uno=True)["nombre"]
             anotar("Reportó sala", f"{sala}: {f['tipo']}. {f.get('descripcion', '').strip()}".strip())
             flash("Reporte enviado. Servicios ya recibió el aviso.", "ok")
@@ -943,7 +930,7 @@ def avisos():
 def reporte_estado(rid):
     if request.form.get("estado") in ("En proceso", "Resuelto"):
         ejecutar("UPDATE reportes SET estado = ?, atendido_por = ?, actualizado = ? WHERE id = ?",
-                 (request.form["estado"], g.usuario["id"], momento(), rid))
+                 (request.form["estado"], g.usuario["id"], ahora().strftime("%Y-%m-%d %H:%M"), rid))
         r = q(REPORTES_SQL + " WHERE r.id = ?", (rid,), uno=True)
         anotar(f"Marcó reporte como «{request.form['estado']}»", f"{r['sala']}: {r['tipo']}")
         flash("Reporte actualizado.", "ok")
@@ -990,7 +977,7 @@ def usuarios():
         f = {k: request.form.get(k, "").strip() for k in ("usuario", "nombre", "rol", "clave")}
         f["usuario"] = f["usuario"].lower()
         if not re.fullmatch(r"[a-z0-9._-]{3,30}", f["usuario"]):
-            flash("El CIF debe tener de 3 a 30 letras o números, sin espacios ni tildes.", "error")
+            flash("El usuario debe tener de 3 a 30 letras o números, sin espacios ni tildes.", "error")
         elif not f["nombre"] or f["rol"] not in ROLES:
             flash("Completa el nombre y el rol.", "error")
         elif len(f["clave"]) < 6:
@@ -1000,9 +987,9 @@ def usuarios():
                 ejecutar("INSERT INTO usuarios(usuario, nombre, rol, clave) VALUES (?, ?, ?, ?)",
                          (f["usuario"], f["nombre"], f["rol"], generate_password_hash(f["clave"])))
                 anotar("Creó usuario", f"{f['usuario']} ({ROLES[f['rol']]})")
-                flash(f"Cuenta {f['usuario']} creada.", "ok")
+                flash(f"Usuario {f['usuario']} creado.", "ok")
             except sqlite3.IntegrityError:
-                flash("Ese CIF ya está registrado.", "error")
+                flash("Ese nombre de usuario ya existe.", "error")
         return redirect(url_for("usuarios"))
     return render_template("usuarios.html", usuarios=q(
         "SELECT u.*, (SELECT COUNT(*) FROM pacientes p WHERE p.estudiante_id = u.id) AS pacientes "
