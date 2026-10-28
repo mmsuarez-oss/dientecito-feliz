@@ -8,10 +8,10 @@ Sistema de gestión de la Clínica Odontológica UAM. Corresponde a la actividad
 2. Escriba su **usuario** y su **clave**, y presione **Entrar**.
 3. Arriba a la derecha aparecen su nombre, **Mi cuenta** (para cambiar la clave) y **Salir**.
 
-Las cuentas las crea **servicios técnicos**. Si olvida su clave, pídale a servicios técnicos que la restablezca.
+Las cuentas las crea **la Facultad**. Si olvida su clave, pídale a la Facultad que la restablezca.
 
 Hay cuatro tipos de cuenta: **estudiante** (registra y atiende a sus pacientes), **profesor** (solo revisa y aprueba),
-**servicios técnicos** (cuentas, salas, tarifario, inventario y traspasos de pacientes) y **servicios generales** (avisos de salas e
+**Facultad** (cuentas, salas, tarifario, inventario y traspasos de pacientes) y **servicios generales** (avisos de salas e
 inventario).
 
 **Usarlo como aplicación en el teléfono**
@@ -79,7 +79,7 @@ Solo puede haber un odontograma en edición por paciente. El **Historial de odon
 - **Agregar tratamiento:** escriba el procedimiento. Si está en el tarifario, el costo se llena solo.
 - **Registrar pago:** escriba el monto en la fila del tratamiento y presione **Pagar**. El sistema no permite pagar más que el saldo.
 - Arriba se muestran el total, lo pagado y el saldo.
-- Un tratamiento que ya tiene pagos solo puede eliminarlo servicios técnicos.
+- Un tratamiento que ya tiene pagos solo puede eliminarlo la Facultad.
 
 ### Citas
 1. En **Citas**, elija el paciente, la fecha, la hora, la sala (opcional) y la **razón de la cita** (obligatoria: para
@@ -109,7 +109,7 @@ Pestañas: **Inicio · Pacientes · Citas · Salas · Bitácora**
 El número junto a *Inicio* indica cuántos pendientes tiene.
 
 > **El profesor solo revisa.** No registra pacientes, no agenda citas, no registra tratamientos ni cobros, no toma
-> firmas y no administra cuentas: esas son tareas del estudiante a cargo y de servicios técnicos. Lo que el profesor
+> firmas y no administra cuentas: esas son tareas del estudiante a cargo y de la Facultad. Lo que el profesor
 > hace es revisar y aprobar el trabajo, y consultarlo todo.
 
 ### Revisar odontogramas
@@ -144,7 +144,7 @@ En el expediente, la sección **Historial de cambios** muestra todo lo que se ha
 
 ---
 
-## 4. Servicios técnicos
+## 4. Facultad
 
 Pestañas: **Usuarios · Pacientes · Citas · Salas · Tarifario · Inventario · Bitácora**
 
@@ -214,11 +214,11 @@ Quien hizo el reporte verá el cambio de estado en la pestaña *Salas*.
 
 **No veo a un paciente.** Los estudiantes solo ven a sus propios pacientes. Si el paciente pasó a otro estudiante, ya
 no le aparece: su trabajo quedó archivado en *Trabajo por estudiante*. También es posible que esté archivado; pregunte
-a servicios técnicos.
+a la Facultad.
 
 **El profesor no puede registrar nada.** Es a propósito: el profesor solo revisa y aprueba. Registrar al paciente, su
 razón de consulta, sus citas, tratamientos y la firma le corresponde al estudiante a cargo; las cuentas, las salas y
-los traspasos, a servicios técnicos.
+los traspasos, a la Facultad.
 
 **Me equivoqué en un diente.** Si todavía no lo envió, elija el estado correcto y toque el diente otra vez. Si ya lo envió, espere la revisión o pida al docente que solicite corrección.
 

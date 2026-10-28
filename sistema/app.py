@@ -40,8 +40,8 @@ SMTP_USUARIO = os.environ.get("DIENTECITO_SMTP_USUARIO")
 SMTP_CLAVE = os.environ.get("DIENTECITO_SMTP_CLAVE")
 SMTP_DESDE = os.environ.get("DIENTECITO_SMTP_DESDE", SMTP_USUARIO)
 
-ROLES = {"estudiante": "Estudiante", "profesor": "Profesor", "servicios": "Servicios generales", "admin": "Servicios técnicos"}
-# Cuentas de ejemplo (datos ficticios): dos por cada rol y una de servicios tecnicos
+ROLES = {"estudiante": "Estudiante", "profesor": "Profesor", "servicios": "Servicios generales", "admin": "Facultad"}
+# Cuentas de ejemplo (datos ficticios): dos por cada rol y una de la Facultad
 CUENTAS_EJEMPLO = [("00000001", "Dra. Grace Mendoza", "profesor"),
                    ("00000002", "Grace Alvarado", "estudiante"),
                    ("00000003", "Gloria Téllez", "servicios"),
@@ -797,7 +797,7 @@ def tratamiento_actualizar(tid):
     f = request.form
     if f.get("eliminar"):
         if t["pagado"] > 0 and not es("admin"):
-            flash("Este tratamiento tiene pagos registrados; solo servicios técnicos puede eliminarlo.", "error")
+            flash("Este tratamiento tiene pagos registrados; solo la Facultad puede eliminarlo.", "error")
         else:
             ejecutar("DELETE FROM tratamientos WHERE id = ?", (tid,))
             anotar("Eliminó tratamiento", f"{t['procedimiento']} (costo {dinero(t['costo'])}, pagado {dinero(t['pagado'])})",

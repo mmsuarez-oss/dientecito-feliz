@@ -7,10 +7,10 @@ Sistema de gestión para la **Clínica Odontológica UAM**. Es una aplicación w
 |---|---|
 | **Estudiante** | Registrar a sus pacientes, **la razón por la que vienen** y su historia clínica. Llenar el odontograma: **primero la foto del odontograma presencial**, después el digital, y enviarlo al docente. Tomar el consentimiento con firma e imprimirlo. Llevar tratamientos y cobros. Agendar sus citas (cada una con su razón) y enviar recordatorios. Reportar salas. **Cada estudiante ve únicamente sus pacientes y sus citas.** |
 | **Profesor** | **Solo revisa.** Ve a todos los pacientes, revisa cada odontograma comparando la foto presencial con el digital y lo aprueba o pide corrección, aprueba pacientes y consulta el historial de qué le hizo cada estudiante a cada paciente. No registra pacientes, citas, tratamientos ni firmas, y no administra cuentas. |
-| **Servicios técnicos** | Crea y desactiva las cuentas, lleva el tarifario y el inventario, administra las salas, archiva y restaura expedientes y **cambia un paciente de estudiante archivando el trabajo del anterior**. |
+| **Facultad** | Crea y desactiva las cuentas, lleva el tarifario y el inventario, administra las salas, archiva y restaura expedientes y **cambia un paciente de estudiante archivando el trabajo del anterior**. |
 | **Servicios generales** | Recibir los **avisos de salas** que necesitan reparación o limpieza y marcarlos como atendidos o resueltos. Administrar salas e inventario. |
 
-Cuentas de ejemplo que se crean la primera vez (el CIF es el identificador de acceso), **dos por cada rol y una de servicios técnicos**, todas con datos ficticios y la clave `uam2026` (se puede cambiar con la variable de entorno `DIENTECITO_CLAVE`):
+Cuentas de ejemplo que se crean la primera vez (el CIF es el identificador de acceso), **dos por cada rol y una de la Facultad**, todas con datos ficticios y la clave `uam2026` (se puede cambiar con la variable de entorno `DIENTECITO_CLAVE`):
 
 | CIF | Nombre | Rol |
 |---|---|---|
@@ -20,12 +20,12 @@ Cuentas de ejemplo que se crean la primera vez (el CIF es el identificador de ac
 | `00000005` | Gabriel Espinoza | Estudiante |
 | `00000003` | Gloria Téllez | Servicios generales |
 | `00000006` | Germán Ortiz | Servicios generales |
-| `00000007` | Gina Saavedra | Servicios técnicos |
+| `00000007` | Gina Saavedra | Facultad |
 
-Servicios técnicos crea las demás cuentas en la pestaña *Usuarios*. El nombre de la persona que entró aparece en la cabecera de todas las pantallas.
+La Facultad crea las demás cuentas en la pestaña *Usuarios*. El nombre de la persona que entró aparece en la cabecera de todas las pantallas.
 
 ## Cambio de estudiante y trabajo por paciente
-Cuando un paciente pasa a otro estudiante, servicios técnicos debe escribir **qué se le hizo al paciente y qué trabajó** el estudiante anterior. Ese trabajo queda archivado con su fecha de cierre y ya no se puede cambiar; el nuevo estudiante empieza su propio periodo. El expediente tiene la pestaña *Trabajo por estudiante* con los dos historiales: los periodos de cada estudiante con su resumen, y la lista de todo lo que cada uno le hizo al paciente.
+Cuando un paciente pasa a otro estudiante, la Facultad debe escribir **qué se le hizo al paciente y qué trabajó** el estudiante anterior. Ese trabajo queda archivado con su fecha de cierre y ya no se puede cambiar; el nuevo estudiante empieza su propio periodo. El expediente tiene la pestaña *Trabajo por estudiante* con los dos historiales: los periodos de cada estudiante con su resumen, y la lista de todo lo que cada uno le hizo al paciente.
 
 ## Salas
 La pestaña *Salas* muestra un **plano sencillo de la clínica**: cada sala con un ✓ si está disponible o una ✗ si tiene un reporte de limpieza o reparación pendiente.
@@ -48,9 +48,9 @@ DIENTECITO_SMTP_DESDE=correo@ejemplo.com   # opcional, usa el usuario si no se i
 Sin estas variables, el botón avisa que el correo no está configurado (el enlace de WhatsApp sigue funcionando igual que antes).
 
 ## Protección de los datos
-- Los expedientes **no se borran**: servicios técnicos los archiva indicando un motivo, y puede restaurarlos.
+- Los expedientes **no se borran**: la Facultad los archiva indicando un motivo, y puede restaurarlos.
 - Una **bitácora** registra quién hizo qué y cuándo, incluidos el valor anterior y el nuevo de cada edición.
-- Se hace una **copia diaria automática** de la base de datos (se conservan 14), y servicios técnicos puede descargar un `.zip` con la base y todas las fotos.
+- Se hace una **copia diaria automática** de la base de datos (se conservan 14), y la Facultad puede descargar un `.zip` con la base y todas las fotos.
 
 ## Áreas de trabajo
 Cada área está en su propia carpeta y se trabaja por separado:

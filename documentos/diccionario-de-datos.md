@@ -27,7 +27,7 @@ Personas que usan el sistema. El rol define la interfaz que ven.
 | id | INTEGER | PK | Identificador del usuario |
 | usuario | TEXT | NN, Único | Nombre para iniciar sesión: 3 a 30 letras o números, en minúsculas |
 | nombre | TEXT | NN | Nombre completo que se muestra en pantalla |
-| rol | TEXT | NN | `estudiante`, `profesor`, `servicios` o `admin` (servicios técnicos). El profesor solo revisa; servicios técnicos lleva cuentas, salas, tarifario, inventario y los traspasos de pacientes |
+| rol | TEXT | NN | `estudiante`, `profesor`, `servicios` o `admin` (Facultad). El profesor solo revisa; la Facultad lleva cuentas, salas, tarifario, inventario y los traspasos de pacientes |
 | clave | TEXT | NN | Clave cifrada con *scrypt* (nunca se guarda en texto plano) |
 | activo | INTEGER | Por defecto 1 | 1 = puede entrar · 0 = cuenta desactivada. Los usuarios no se borran |
 
