@@ -6,7 +6,7 @@ import tkinter as tk
 from pathlib import Path
 from tkinter import ttk, messagebox
 
-DB = Path(__file__).with_name("dientecito.db")
+DB = Path(__file__).parent.parent / "sistema" / "dientecito.db"  # la base del sistema
 
 ESTADOS = {  # estado: color
     "Sano": "#ffffff",

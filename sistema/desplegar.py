@@ -25,7 +25,9 @@ args.add_argument("--clave", default="uam2026", help="clave de acceso que usaran
 args.add_argument("--eu", action="store_true", help="la cuenta es de eu.pythonanywhere.com")
 args = args.parse_args()
 
-token = os.environ.get("PA_TOKEN") or (RAIZ / ".pa_token").read_text(encoding="utf-8").strip()
+archivos_token = [RAIZ / ".pa_token", RAIZ.parent / ".pa_token"]
+token = os.environ.get("PA_TOKEN") or next(
+    (a.read_text(encoding="utf-8").strip() for a in archivos_token if a.exists()), "")
 host = "eu.pythonanywhere.com" if args.eu else "www.pythonanywhere.com"
 dominio = f"{args.usuario}.{'eu.' if args.eu else ''}pythonanywhere.com"
 api = f"https://{host}/api/v0/user/{args.usuario}"

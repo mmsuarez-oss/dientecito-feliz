@@ -2,7 +2,7 @@
 
 Ejecutar:   python pruebas.py
 Usa una base de datos temporal: no toca dientecito.db ni las fotos reales.
-Cada caso tiene un codigo (CP-xx) que coincide con docs/plan-de-pruebas.md.
+Cada caso tiene un codigo (CP-xx) que coincide con plan-de-pruebas.md, en esta misma carpeta.
 """
 import io
 import re
@@ -14,6 +14,7 @@ from contextlib import contextmanager
 from datetime import timedelta
 from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).parent.parent / "sistema"))  # el sistema vive en ../sistema
 import app as m
 
 TEMPORAL = Path(tempfile.mkdtemp())
@@ -107,7 +108,7 @@ with caso("CP-04", "Cada rol ve solo sus pestañas (403 en las ajenas)"):
         for ruta in permitidas:
             ok(c.get(ruta))
     assert admin.get("/respaldo").status_code == 200  # devuelve un .zip, no una pagina
-with caso("CP-05", "La administración crea usuarios; se validan el CIF y la clave"):
+with caso("CP-05", "Servicios técnicos crea usuarios; se validan el CIF y la clave"):
     assert prof.post("/usuarios", data={"nombre": "X", "usuario": "nueva", "rol": "estudiante",
                                         "clave": "abc123"}).status_code == 403
     ok(admin.post("/usuarios", data={"nombre": "Grace Ruiz", "usuario": "Grace.Ruiz", "rol": "estudiante", "clave": "abc123"},
@@ -262,8 +263,8 @@ with caso("CP-23", "Un pago nunca supera el saldo pendiente"):
     est.post(f"/tratamientos/{tid}", data={"abono": "100"})
     est.post(f"/tratamientos/{tid}", data={"abono": "999"})
     assert sql("SELECT pagado FROM tratamientos WHERE id = ?", (tid,)) == 300
-with caso("CP-24", "Un tratamiento con pagos solo lo puede eliminar la administración"):
-    ok(est.post(f"/tratamientos/{tid}", data={"eliminar": "1"}, follow_redirects=True), "solo el administrador")
+with caso("CP-24", "Un tratamiento con pagos solo lo puede eliminar servicios técnicos"):
+    ok(est.post(f"/tratamientos/{tid}", data={"eliminar": "1"}, follow_redirects=True), "solo servicios técnicos")
     assert sql("SELECT COUNT(*) FROM tratamientos WHERE id = ?", (tid,)) == 1
     admin.post(f"/tratamientos/{tid}", data={"eliminar": "1"})
     assert sql("SELECT COUNT(*) FROM tratamientos WHERE id = ?", (tid,)) == 0
@@ -274,7 +275,7 @@ with caso("CP-25", "Ya no existe la opción de borrar pacientes"):
     assert est.post(f"/pacientes/{pid}/eliminar").status_code in (404, 405)
     assert est.post(f"/pacientes/{pid}/archivo", data={"motivo": "x"}).status_code == 403
     assert prof.post(f"/pacientes/{pid}/archivo", data={"motivo": "x"}).status_code == 403
-with caso("CP-26", "La administración archiva con motivo; el paciente desaparece de las listas pero se conserva"):
+with caso("CP-26", "Servicios técnicos archiva con motivo; el paciente desaparece de las listas pero se conserva"):
     ok(admin.post(f"/pacientes/{pid}/archivo", data={"motivo": ""}, follow_redirects=True), "Indique el motivo")
     ok(admin.post(f"/pacientes/{pid}/archivo", data={"motivo": "Alta del tratamiento"}, follow_redirects=True), "fue archivado")
     assert "Luis Pérez" not in prof.get("/pacientes").get_data(as_text=True)
@@ -282,7 +283,7 @@ with caso("CP-26", "La administración archiva con motivo; el paciente desaparec
     ok(prof.get("/pacientes?archivados=1"), "Luis Pérez")
     ok(prof.get(f"/pacientes/{pid}"), "Paciente archivado", "Alta del tratamiento")
     assert sql("SELECT COUNT(*) FROM odonto_sesiones WHERE paciente_id = ?", (pid,)) == 1
-with caso("CP-27", "La administración puede restaurar un paciente archivado"):
+with caso("CP-27", "Servicios técnicos puede restaurar un paciente archivado"):
     ok(admin.post(f"/pacientes/{pid}/archivo", data={"restaurar": "1"}, follow_redirects=True), "Paciente restaurado")
     ok(est.get(f"/pacientes/{pid}"), "Luis Pérez")
 with caso("CP-28", "El historial del expediente muestra todas las acciones realizadas"):
@@ -295,7 +296,7 @@ with caso("CP-28", "El historial del expediente muestra todas las acciones reali
 with caso("CP-29", "Se crea una copia diaria automática de la base de datos"):
     copias = list(m.RESPALDOS.glob("dientecito-*.db"))
     assert len(copias) == 1 and copias[0].name == f"dientecito-{m.hoy().isoformat()}.db"
-with caso("CP-30", "La administración descarga un .zip con la base de datos y las fotos"):
+with caso("CP-30", "Servicios técnicos descarga un .zip con la base de datos y las fotos"):
     r = admin.get("/respaldo")
     assert r.status_code == 200 and "attachment" in r.headers["Content-Disposition"]
     with zipfile.ZipFile(io.BytesIO(r.data)) as z:

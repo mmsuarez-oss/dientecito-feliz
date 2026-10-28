@@ -5,3 +5,5 @@ __pycache__/
 .pa_token
 fotos/
 respaldos/
+.neon_url
+*.zip

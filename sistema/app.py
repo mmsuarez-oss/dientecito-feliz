@@ -28,7 +28,7 @@ from werkzeug.security import check_password_hash, generate_password_hash
 RAIZ = Path(__file__).parent
 DB = RAIZ / "dientecito.db"
 FOTOS = RAIZ / "fotos"
-RESPALDOS = RAIZ / "respaldos"  # copia diaria automatica de la base de datos
+RESPALDOS = RAIZ.parent / "respaldos"  # copia diaria automatica, en la carpeta de respaldos del proyecto
 DIAS_RESPALDO = 14
 CLAVE_INICIAL = os.environ.get("DIENTECITO_CLAVE", "uam2026")  # clave de las cuentas de ejemplo
 DEMO = bool(os.environ.get("DIENTECITO_DEMO"))  # servidor publico de prueba: muestra aviso de datos ficticios
@@ -40,8 +40,8 @@ SMTP_USUARIO = os.environ.get("DIENTECITO_SMTP_USUARIO")
 SMTP_CLAVE = os.environ.get("DIENTECITO_SMTP_CLAVE")
 SMTP_DESDE = os.environ.get("DIENTECITO_SMTP_DESDE", SMTP_USUARIO)
 
-ROLES = {"estudiante": "Estudiante", "profesor": "Profesor", "servicios": "Servicios", "admin": "Administrador"}
-# Cuentas de ejemplo (datos ficticios): dos por cada rol y una de administracion
+ROLES = {"estudiante": "Estudiante", "profesor": "Profesor", "servicios": "Servicios generales", "admin": "Servicios técnicos"}
+# Cuentas de ejemplo (datos ficticios): dos por cada rol y una de servicios tecnicos
 CUENTAS_EJEMPLO = [("00000001", "Dra. Grace Mendoza", "profesor"),
                    ("00000002", "Grace Alvarado", "estudiante"),
                    ("00000003", "Gloria Téllez", "servicios"),
@@ -797,7 +797,7 @@ def tratamiento_actualizar(tid):
     f = request.form
     if f.get("eliminar"):
         if t["pagado"] > 0 and not es("admin"):
-            flash("Este tratamiento tiene pagos registrados; solo el administrador puede eliminarlo.", "error")
+            flash("Este tratamiento tiene pagos registrados; solo servicios técnicos puede eliminarlo.", "error")
         else:
             ejecutar("DELETE FROM tratamientos WHERE id = ?", (tid,))
             anotar("Eliminó tratamiento", f"{t['procedimiento']} (costo {dinero(t['costo'])}, pagado {dinero(t['pagado'])})",

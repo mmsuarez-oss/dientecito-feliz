@@ -6,7 +6,7 @@ Corresponde a las actividades 6.1 (plan y casos de prueba) y 6.2 (pruebas unitar
 
 | Tipo | Cómo se ejecuta | Qué cubre |
 |---|---|---|
-| **Automáticas de integración** | `python pruebas.py` | Los 36 casos de la sección 3: recorren la aplicación completa (servidor, reglas y base de datos) como lo haría cada usuario |
+| **Automáticas de integración** | `python pruebas.py` dentro de `pruebas/` | Los 36 casos de la sección 3: recorren la aplicación completa (servidor, reglas y base de datos) como lo haría cada usuario |
 | **Automáticas del prototipo** | `python pruebas.py` dentro de `prototipo-no-funcional/` | Las 22 comprobaciones del prototipo no funcional que se presenta en la defensa |
 | **Manuales de interfaz** | Navegador de computadora y vista de teléfono (390 px) | Sección 4: diseño, uso táctil, fotos y firma |
 | **De aceptación** | Con la clínica (actividad 6.4) | Sección 5: pendientes |
@@ -14,7 +14,7 @@ Corresponde a las actividades 6.1 (plan y casos de prueba) y 6.2 (pruebas unitar
 Las pruebas automáticas usan una **base de datos temporal**: no modifican `dientecito.db` ni las fotos reales. Cada caso tiene un código (CP-xx) que aparece en la salida del programa.
 
 **Datos de prueba:**
-- Las siete cuentas de ejemplo con CIF ficticios (dos profesores, dos estudiantes, dos de servicios y una de administración), más una estudiante creada durante la prueba (`grace.ruiz`).
+- Las siete cuentas de ejemplo con CIF ficticios (dos profesores, dos estudiantes, dos de servicios y una de servicios técnicos), más una estudiante creada durante la prueba (`grace.ruiz`).
 - Pacientes ficticios: *Luis Pérez* (T-100) y *Rosa Díaz* (T-200).
 - Fotos: archivos JPG mínimos.
 
@@ -34,7 +34,7 @@ Se aprueba la versión si los **36 casos automáticos** terminan en OK y las pru
 | CP-02 | Páginas sin sesión | Abrir `/`, `/pacientes`, `/citas`, `/avisos` y `/bitacora` sin entrar | Redirige a la pantalla de entrada |
 | CP-03 | Clave incorrecta | CIF `00000001` con clave errónea | Mensaje "CIF o contraseña incorrectos", y el intento queda en la bitácora |
 | CP-04 | Pestañas por rol | Cada rol abre las páginas propias y las ajenas | Las propias responden; las ajenas dan error 403 |
-| CP-05 | Crear usuarios | El profesor lo intenta; luego la administración con CIF válido, CIF con espacio y clave de 3 caracteres | El profesor recibe 403. La administración crea el válido y rechaza los otros dos con su mensaje |
+| CP-05 | Crear usuarios | El profesor lo intenta; luego servicios técnicos con CIF válido, CIF con espacio y clave de 3 caracteres | El profesor recibe 403. Servicios técnicos crea el válido y rechaza los otros dos con su mensaje |
 
 ### Pacientes y expediente
 | Código | Caso | Pasos / datos | Resultado esperado |
@@ -95,7 +95,7 @@ Se aprueba la versión si los **36 casos automáticos** terminan en OK y las pru
 ### Traspaso de pacientes y consentimiento
 | Código | Caso | Pasos / datos | Resultado esperado |
 |---|---|---|---|
-| CP-32 | Cambio de estudiante | El estudiante y el profesor intentan abrir el traspaso; la administración traspasa sin resumen y luego con resumen | Los dos primeros reciben 403. Sin resumen se rechaza. Con resumen, el paciente cambia de estudiante, el periodo anterior se cierra con ese texto y el estudiante anterior ya no lo ve (404) |
+| CP-32 | Cambio de estudiante | El estudiante y el profesor intentan abrir el traspaso; servicios técnicos traspasa sin resumen y luego con resumen | Los dos primeros reciben 403. Sin resumen se rechaza. Con resumen, el paciente cambia de estudiante, el periodo anterior se cierra con ese texto y el estudiante anterior ya no lo ve (404) |
 | CP-33 | Historial de trabajo | El estudiante nuevo abre la pestaña *Trabajo por estudiante* | Ve los dos estudiantes, el resumen archivado, quién lo atiende ahora y la lista de lo que cada uno le hizo |
 | CP-34 | Consentimiento impreso | Abrir la hoja de consentimiento; luego intentarlo como Servicios | Sale el texto del consentimiento, los datos del paciente, su razón de consulta y su firma. Servicios recibe 403 |
 
@@ -126,4 +126,4 @@ Con estudiantes y coordinación de la clínica:
 |---|---|---|
 | 2026-09-25 | Roles, odontograma con foto, avisos de salas, archivo, bitácora y respaldos | 31 de 31 casos automáticos correctos; PM-01 a PM-06 correctos |
 | 2026-09-25 | Odontograma por sesiones: primero la foto presencial, después el digital; revisión del docente lado a lado | 31 de 31 casos automáticos correctos; PM-01 a PM-07 correctos |
-| 2026-10-28 | Mejoras de la defensa: el profesor solo revisa, rol de administración, traspaso de pacientes con archivo del trabajo, razón del paciente y de la cita, plano de salas y consentimiento imprimible | 36 de 36 casos automáticos correctos; 22 de 22 del prototipo no funcional |
+| 2026-10-28 | Mejoras de la defensa: el profesor solo revisa, rol de servicios técnicos, traspaso de pacientes con archivo del trabajo, razón del paciente y de la cita, plano de salas y consentimiento imprimible | 36 de 36 casos automáticos correctos; 22 de 22 del prototipo no funcional |

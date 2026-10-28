@@ -1,6 +1,6 @@
 # Diccionario de datos — Clínicas Odontológicas
 
-Base de datos SQLite (`dientecito.db`). Corresponde a la actividad 3.4 del cronograma.
+Base de datos SQLite (`sistema/dientecito.db`). Las mismas tablas existen para PostgreSQL en la nube en `sistema/neon.py` (Neon), donde `INTEGER PRIMARY KEY` pasa a `SERIAL` y `REAL` a `DOUBLE PRECISION`. Corresponde a la actividad 3.4 del cronograma.
 Las fechas se guardan como texto ISO (`AAAA-MM-DD` o `AAAA-MM-DD HH:MM`) en hora de Nicaragua (UTC−6).
 
 **Convenciones:** PK = llave primaria · FK = llave foránea · NN = obligatorio · Único = no admite repetidos.
@@ -27,7 +27,7 @@ Personas que usan el sistema. El rol define la interfaz que ven.
 | id | INTEGER | PK | Identificador del usuario |
 | usuario | TEXT | NN, Único | Nombre para iniciar sesión: 3 a 30 letras o números, en minúsculas |
 | nombre | TEXT | NN | Nombre completo que se muestra en pantalla |
-| rol | TEXT | NN | `estudiante`, `profesor`, `servicios` o `admin` (administración). El profesor solo revisa; la administración lleva cuentas, salas, tarifario, inventario y los traspasos de pacientes |
+| rol | TEXT | NN | `estudiante`, `profesor`, `servicios` o `admin` (servicios técnicos). El profesor solo revisa; servicios técnicos lleva cuentas, salas, tarifario, inventario y los traspasos de pacientes |
 | clave | TEXT | NN | Clave cifrada con *scrypt* (nunca se guarda en texto plano) |
 | activo | INTEGER | Por defecto 1 | 1 = puede entrar · 0 = cuenta desactivada. Los usuarios no se borran |
 

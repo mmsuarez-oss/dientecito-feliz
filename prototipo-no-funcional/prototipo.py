@@ -13,14 +13,14 @@ from datetime import date
 from flask import (Flask, Response, flash, redirect, render_template, request,
                    session, url_for)
 
-# Cuentas de ejemplo con CIF ficticios: dos por cada tipo y una de administración
+# Cuentas de ejemplo con CIF ficticios: dos por cada tipo y una de servicios tecnicos
 CUENTAS = {"00000001": ("Dra. Grace Mendoza", "profesor"),
            "00000004": ("Dr. Gustavo Rivas", "profesor"),
            "00000002": ("Grace Alvarado", "estudiante"),
            "00000005": ("Gabriel Espinoza", "estudiante"),
            "00000007": ("Gina Saavedra", "admin")}
 CLAVE_EJEMPLO = "uam2026"  # en el sistema real la clave va cifrada en la base de datos
-ROLES = {"profesor": "Profesor", "estudiante": "Estudiante", "admin": "Administración"}
+ROLES = {"profesor": "Profesor", "estudiante": "Estudiante", "admin": "Servicios Técnicos"}
 # Pestanas de cada rol: (nombre, endpoint)
 MENUS = {"estudiante": [("Inicio", "menu"), ("Mis pacientes", "pacientes"), ("Mis citas", "citas"), ("Salas", "salas")],
          # El profesor solo revisa: no registra pacientes, citas ni tratamientos
