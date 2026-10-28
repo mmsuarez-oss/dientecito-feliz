@@ -5,7 +5,7 @@ Sistema de gestión de la Clínica Odontológica UAM. Corresponde a la actividad
 ## 1. Acceso
 
 1. Abra el navegador (Chrome, Safari, Edge o Firefox) en la computadora o el teléfono y entre a la dirección del sistema.
-2. Escriba su **CIF** y su **clave**, y presione **Iniciar sesión**.
+2. Escriba su **usuario** y su **clave**, y presione **Entrar**.
 3. Arriba a la derecha aparecen su nombre, **Mi cuenta** (para cambiar la clave) y **Salir**.
 
 Las cuentas las crea **la administración**. Si olvida su clave, pídale a la administración que la restablezca.
@@ -166,7 +166,7 @@ Los expedientes **no se borran**. Al final del expediente:
 El paciente deja de aparecer en las listas y en la agenda, pero conserva todo su historial. Para verlo, marque **Ver archivados** en *Pacientes*. Dentro del expediente, **Restaurar** lo devuelve a las listas.
 
 ### Usuarios
-- **Nuevo usuario:** nombre, CIF (sin espacios ni tildes), rol y clave inicial de al menos 6 caracteres.
+- **Nuevo usuario:** nombre, usuario (sin espacios ni tildes), rol y clave inicial de al menos 6 caracteres.
 - **Restablecer clave:** escriba la clave nueva en la fila del usuario y presione **Cambiar**.
 - **Desactivar:** la persona ya no puede entrar, pero su historial se conserva. Las cuentas no se borran.
 

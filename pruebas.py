@@ -177,8 +177,9 @@ with caso("CP-12", "Con la foto se habilita el odontograma digital y se guardan 
     assert est.post(f"/sesiones/{sid}/diente", json={"diente": 99, "estado": "Caries"}).status_code == 400
     assert sql("SELECT COUNT(*) FROM odonto_registros WHERE sesion_id = ?", (sid,)) == 2  # un registro por diente
     assert sql("SELECT estado FROM odonto_registros WHERE paciente_id = ? AND diente = 16", (pid,)) == "Caries"
-    with m.app.test_request_context():  # el estado de cada diente sale del ultimo registro
-        assert m.dientes_de(pid) == {16: "Caries", 26: "Obturado"}
+    # el estado actual de cada diente queda en su propia tabla
+    assert sql("SELECT estado FROM odontograma WHERE paciente_id = ? AND diente = 16", (pid,)) == "Caries"
+    assert sql("SELECT estado FROM odontograma WHERE paciente_id = ? AND diente = 26", (pid,)) == "Obturado"
     ok(est.post(f"/pacientes/{pid}/sesiones", data={"foto": foto()}, follow_redirects=True), "Ya hay un odontograma en curso")
 with caso("CP-13", "Las fotos solo las ven el estudiante dueño y el docente"):
     assert grace.get(f"/fotos/{archivo_foto}").status_code == 404
